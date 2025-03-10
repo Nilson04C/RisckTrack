@@ -1,0 +1,27 @@
+.sidebar-custom {
+    background-color: #f8f9fa; /* Cor de fundo */
+    height: 100vh; /* Ocupa toda a altura da tela */
+    border-right: 2px solid #dee2e6; /* Linha divisória à direita */
+}
+
+.grid {
+    display: flex; /* Ativa o Flexbox */
+    flex-direction: column; /* Organiza em coluna */
+    justify-content: center; /* Centraliza verticalmente */
+    align-items: center; /* Centraliza horizontalmente */
+    min-height: 80vh; /* Define altura mínima */
+}
+
+
+.grid-item {
+    background-color: #e9ecef; /* Cor de fundo */
+    border-radius: 8px; /* Bordas arredondadas */
+    padding: 40px; /* Espaçamento interno */
+    text-align: center; /* Centralizar conteúdo */
+    margin: 10px; /* Espaçamento externo */
+    white-space: nowrap; /* Impede a quebra de linha dentro do elemento */
+}
+
+.menu-item {
+    margin: 10px; /* Espaçamento externo */
+}
