@@ -22,24 +22,25 @@ source("modules/mod_dashboard.R")
 
 ui <- fluidPage(
 
-  # Menu superior (inicialmente escondido)
   useShinyjs(),  # Ativar shinyjs para manipular visibilidade
   
   # Menu superior (escondido por padrão)
   div(id = "menu_superior", 
-      style = "display: none;",  # Esconde o menu logo no carregamento
-      class = "navbar navbar-expand-lg navbar-light bg-light",
-      div(class = "container-fluid",
-          tags$a(class = "navbar-brand", "RiskTrack"),  # Título do app
+      style = "display: none; background-color: black;",  # Esconde o menu logo no carregamento
+      class = "navbar",
+      
+      # Container para o conteúdo da navbar
+      div(class = "container-fluid",  # Garante o alinhamento correto dos itens na navbar
+          tags$a(href = "#", style = "color: white;", class ="navbar-brand", "RiskTrack"),  # Título do app
+          
           div(class = "collapse navbar-collapse",
               tags$ul(class = "navbar-nav navbar-right",
-                      tags$li(class = "nav-item", actionLink("btn_logout", "Logout", class = "nav-link"))
+                      tags$li(class = "nav-item", actionLink("btn_logout", "Logout", class = "nav-link", style=" color:white"))
               )
           )
       )
   ),
-  
-
+            
   # Layout com menu lateral (inicialmente escondido) e conteúdo principal
   sidebarLayout(
     sidebarPanel(
