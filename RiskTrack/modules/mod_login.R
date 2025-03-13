@@ -17,7 +17,7 @@ mod_login_server <- function(id, estado_login) {
   moduleServer(id, function(input, output, session) {
     observeEvent(input$entrar, {
       # Aqui podes substituir por uma base de dados real
-      credenciais_validas <- input$email == "Teste" && input$senha == "1234"
+      credenciais_validas <- input$email == "" && input$senha == ""
       
       
       
