@@ -35,20 +35,17 @@ ui <- fluidPage(
       
       
       #Titulo do APP
-      tags$a(href = "#", style = "color: white; position:bottom;", class ="navbar-brand", "RiskTrack"),  # Título do app
+      tags$a(href = "#", style = "color: white;", class ="navbar-brand", "RiskTrack"),  # Título do app
       
       #Conteiner para o botão NEW
       div(style = "position: relative; masgin-left: 100px",
           
           # Botão "new"
           actionLink("add_btn", "New", 
-                       style = "color: white; 
-                                background-color: black; 
-                                border-color: black;"),
+                       style = "color: white;"),
           
           #DropDown List
           div(id = "dropdown_new", class ="dropdown-list",
-              actionLink("new_dataset", "Dataset", class = "dropdown-option"),
               actionLink("new_modelo", "Modelo", class = "dropdown-option"),
               actionLink("new_previsoes", "Previsões", class = "dropdown-option")
           )
@@ -73,6 +70,10 @@ ui <- fluidPage(
       uiOutput("pagina")  # Conteúdo dinâmico
     )
   ),
+  
+  
+  # formulário que aparaece ao clicar numa das opções do new
+  uiOutput("Formulario")
 )
 
 server <- function(input, output, session) {
@@ -93,7 +94,7 @@ server <- function(input, output, session) {
           var sidebarWidth = document.getElementById('menu_lateral').offsetWidth;
           var newButton = document.getElementById('add_btn');
           newButton.style.position = 'absolute';
-          newButton.style.left = (sidebarWidth - newButton.offsetWidth) + 'px';  // Alinha ao final do sidebar
+          newButton.style.left = (sidebarWidth - newButton.offsetWidth-120) + 'px';  // Alinha ao final do sidebar
         }, 100);
       ")
       
@@ -133,10 +134,6 @@ server <- function(input, output, session) {
     shinyjs::toggle("dropdown_new")
   })
   
-  # Reagir às opções do dropdown
-  observeEvent(input$new_dataset, {
-    shinyjs::hide("dropdown_new")
-  })
   observeEvent(input$new_modelo, {
     shinyjs::hide("dropdown_new")
   })
@@ -174,8 +171,21 @@ server <- function(input, output, session) {
       var sidebarWidth = document.getElementById('menu_lateral').offsetWidth;
       var newButton = document.getElementById('add_btn');
       newButton.style.position = 'absolute';
-      newButton.style.left = (sidebarWidth - newButton.offsetWidth) + 'px';  // Alinha ao final do sidebar
+      newButton.style.left = (sidebarWidth - newButton.offsetWidth-120) + 'px';  // Alinha ao final do sidebar
     ")
+  })
+  
+  
+  # Conteúdo do Formulário do botão NEW
+  observeEvent(input$new_modelo, {
+    showModal(modalDialog(
+      title = "Modelo",
+      textInput("file_name", "Nome do arquivo:"),
+      fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
+      actionButton("submit", "Enviar"),
+      easyClose = TRUE,
+      footer = NULL
+    ))
   })
   
   
