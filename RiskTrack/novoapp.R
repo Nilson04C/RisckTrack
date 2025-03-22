@@ -3,6 +3,8 @@ library(DBI)
 library(RPostgres)
 library(pool)
 library(shinyjs)
+library(bslib)
+library(shinyBS)
 
 
 # Criar um pool de conexão para gerenciar conexões ao banco de dados
@@ -19,6 +21,7 @@ pool <- dbPool(
 source("modules/mod_login.R")
 source("modules/mod_models.R")
 source("modules/mod_dashboard.R")
+source("functions/func_models.R")
 
 ui <- fluidPage(
   
@@ -73,10 +76,45 @@ ui <- fluidPage(
   
   
   # formulário que aparaece ao clicar numa das opções do new
-  uiOutput("Formulario")
+  uiOutput("Formulario"),
+  
+  bsModal(
+    id = "meu_modal",
+    title = "Meu Modal",
+    trigger = "new_modelo",
+    size = "large",
+    body = tagList(
+      textInput("file_name", "Nome do arquivo:"),
+      fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
+      actionButton("submit_dataset", "Enviar"),
+      sliderInput("slider", "Slider", 
+                  min = 30, max = 80, value = 60)
+    )
+  )
 )
 
 server <- function(input, output, session) {
+  
+  observeEvent(input$submit_dataset,{
+    
+    # Obter o valor do slider
+    valor_slider <- input$slider
+    print(paste("Valor do slider:", valor_slider))
+    
+    # Verificar se o dataset foi carregado
+    if (!is.null(input$file_upload)) {
+      
+      # Carregar o dataset
+      dataset <- read.csv(input$file_upload$datapath, sep = ";")
+      print("Dataset carregado:")
+      print(head(dataset))  # Exibir as primeiras linhas do dataset para teste
+      
+      criarModelo(dataset, valor_slider/100)
+      
+    } else {
+      print("Nenhum dataset foi carregado.")
+    }
+  })
   
   
   estado_login <- reactiveVal(FALSE)  # Estado de login (TRUE = logado, FALSE = não logado)
@@ -176,17 +214,7 @@ server <- function(input, output, session) {
   })
   
   
-  # Conteúdo do Formulário do botão NEW
-  observeEvent(input$new_modelo, {
-    showModal(modalDialog(
-      title = "Modelo",
-      textInput("file_name", "Nome do arquivo:"),
-      fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
-      actionButton("submit", "Enviar"),
-      easyClose = TRUE,
-      footer = NULL
-    ))
-  })
+
   
   
   mod_login_server("login", estado_login)
