@@ -1,6 +1,6 @@
 library(caret)
 library(rpart)
-
+library(tidymodels)
 
 # 
 criarModelo<- function(dataset, para_treino){
@@ -10,7 +10,7 @@ criarModelo<- function(dataset, para_treino){
   dataset <- dataset[, -1]
   
   
-  datasetF = filtrardados(dataset)
+  datasetF = tratardados(dataset)
   
   nome_variaveis <- names(datasetF)  # Obter os nomes das colunas
   target <- nome_variaveis[length(nome_variaveis)]  # Última coluna como target
@@ -20,19 +20,19 @@ criarModelo<- function(dataset, para_treino){
   
   treino <- datasetF[indices_treino, ]
   teste <- datasetF[-indices_treino, ]
-  
-  print(levels(datasetF[[target]])) 
+ 
   
   #print(head(teste[[target]]))
   
-  modelo = treinarModelo(treino, target, features)
+  modelo = treinarModeloComParametrosOtimizado(treino, target, features)
+  #modelo = treinarModelo(treino, target, features)
   avaliacao = avaliarModelo(modelo, target, teste)
 }
 
 
 
 
-filtrardados <- function(dataset) {
+tratardados <- function(dataset) {
   
   
   cat("Filtrando Dataset    ")
@@ -53,13 +53,26 @@ filtrardados <- function(dataset) {
   dataset[dataset == "Nan"] <- NA
   
   
-  # Garantir que o target seja tratado como fator (caso necessário)
-  # Aqui estamos assumindo que a última coluna é sempre o target
-  target <- names(dataset)[ncol(dataset)]
-  
-  # Converter o target para fator sem forçar níveis
-  dataset[[target]] <- as.factor(dataset[[target]])
-  
+  #substituir os valores em falta pela média ou moda
+    dataset[] <- lapply(dataset, function(coluna) {
+      
+      if (is.numeric(coluna)) {
+        media <- mean(coluna, na.rm = TRUE)
+        coluna[is.na(coluna)] <- media
+        cat("lá dentro")
+        
+      } else {
+        # Substituir NAs pela moda (classe mais frequente)
+        tab <- table(coluna, useNA = "no")  # Conta a frequência das categorias
+        moda <- names(tab[tab == max(tab)])  # Obtém a classe mais frequente
+        coluna[is.na(coluna)] <- moda[1] 
+        
+        # Se for texto, converte para fator
+        coluna <- as.factor(coluna)
+      }
+      return(coluna)
+    })
+    
   
   # Remover linhas com qualquer NA ou NaN
   dataset <- dataset[complete.cases(dataset), ]
@@ -76,7 +89,7 @@ dividirData <- function(dataset, para_treino, target){
   
   cat("dividindo Dataset     ")
   
-  set.seed(123)  # permite reprodutibilidade
+  #set.seed(123)  # permite reprodutibilidade
   
   # Fazer a divisão estratificada apenas se o target categórico
   if (is.factor(dataset[[target]]) || is.character(dataset[[target]])) {
@@ -96,8 +109,10 @@ dividirData <- function(dataset, para_treino, target){
 
 treinarModelo <- function(dados, target, features){
   
-  maxdepth = 15
-  cp = 0.05
+  str(dados)  # Mostra a estrutura do dataset
+  
+  maxdepth = 8
+  cp = 0.001
   
   formula_modelo <- criarFormula(dados, target, features)
   
@@ -105,7 +120,7 @@ treinarModelo <- function(dados, target, features){
   
   
   modelo <- rpart(formula_modelo, 
-                  data = dados[1:500,], 
+                  data = dados, 
                   method = "class", 
                   control = rpart.control(maxdepth = maxdepth, cp = cp))
   cat("Modelo Treinado       ")
@@ -133,7 +148,7 @@ avaliarModelo <- function(modelo, target, dados){
   cat("Hora de avaliar      ")
   
   # Realizar previsões
-  previsoes <- predict(modelo, newdata = dados, type = "class")  # para classificação
+  previsoes <- predict(modelo, newdata = dados, type = "raw")  # para classificação
   
   #print(unique(dados[[target]]))
   #print(levels(previsoes))  # Veja os níveis das previsões
@@ -147,4 +162,65 @@ avaliarModelo <- function(modelo, target, dados){
   
   return(matriz_confusao)
 }
+
+
+
+
+
+
+
+treinarModeloComParametrosOtimizado <- function(dados, target, features) {
+  
+  #dados[[target]] <- factor(dados[[target]], levels = make.names(levels(dados[[target]])))
+  
+  #str(dados)  # Mostra a estrutura do dataset
+  
+  # Imprimir os níveis (classes) do target (coluna 'Passed')
+  #print(levels(dados[[target]]))
+  
+  
+  #print(sum(is.na(dados)))  # Mostra quantos NAs existem no dataset
+  #print(colSums(is.na(dados)))  # Mostra quantos NAs há em cada coluna
+  
+  
+  # Definir a grade de parâmetros apenas para cp
+  tuneGrid <- expand.grid(
+    cp = c(0.001, 0.005, 0.05, 0.01, 0.1, 0.3),  # Parâmetro de complexidade da árvore
+  )
+  
+  # Definir o controle de treinamento com validação cruzada
+  trainControlObj <- trainControl(
+    method = "cv",                     # Validação cruzada
+    number = 10,                        # 10-fold cross-validation
+    search = "grid",                    # Usar uma grade de parâmetros
+    classProbs = TRUE,                  # Para cálculos de probabilidades em problemas de classificação
+    summaryFunction = twoClassSummary   # Para calcular AUC, precisão, etc.
+  )
+  
+  # Criar a fórmula para o modelo
+  formula_modelo <- criarFormula(dados, target, features)
+  
+  cat("Treinando Modelo com parâmetros otimizados  \n")
+  
+  
+  
+  # Treinamento do modelo com ajuste do parâmetro cp
+  modelo <- train(
+    formula_modelo,                     
+    data = dados,                        
+    method = "rpart",                    
+    trControl = trainControlObj,         
+    tuneGrid = tuneGrid,                 
+    metric = "Accuracy",                 
+    control = rpart.control(maxdepth = 10)  # Controla a profundidade da árvore
+  )
+  
+  print(modelo$bestTune)  # Ver qual foi o melhor valor de cp encontrado
+  
+  
+  cat("Modelo Treinado com parâmetros otimizados  \n")
+  
+  return(modelo)
+}
+
 

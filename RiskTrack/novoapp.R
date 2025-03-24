@@ -107,7 +107,6 @@ server <- function(input, output, session) {
       # Carregar o dataset
       dataset <- read.csv(input$file_upload$datapath, sep = ";")
       print("Dataset carregado:")
-      print(head(dataset))  # Exibir as primeiras linhas do dataset para teste
       
       criarModelo(dataset, valor_slider/100)
       
