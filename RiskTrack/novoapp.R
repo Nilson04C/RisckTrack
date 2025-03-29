@@ -5,6 +5,8 @@ library(pool)
 library(shinyjs)
 library(bslib)
 library(shinyBS)
+#heatmap para amatriz de confusão
+library(pheatmap)
 
 
 # Criar um pool de conexão para gerenciar conexões ao banco de dados
@@ -84,11 +86,19 @@ ui <- fluidPage(
     trigger = "new_modelo",
     size = "large",
     body = tagList(
-      textInput("file_name", "Nome do arquivo:"),
-      fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
-      actionButton("submit_dataset", "Enviar"),
-      sliderInput("slider", "Slider", 
-                  min = 30, max = 80, value = 60)
+      fluidRow(
+        column(6, 
+               textInput("file_name", "Nome do arquivo:"),
+               fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
+               actionButton("submit_dataset", "Enviar"),
+               sliderInput("slider", "Slider", 
+                           min = 30, max = 80, value = 60),
+        ),
+        column(6, 
+               plotOutput("plot_confusao"),
+               tableOutput("table_avaliacao")
+        )
+      )
     )
   )
 )
@@ -108,7 +118,26 @@ server <- function(input, output, session) {
       dataset <- read.csv(input$file_upload$datapath, sep = ";")
       print("Dataset carregado:")
       
-      criarModelo(dataset, valor_slider/100)
+      avaliacao_modelo <- criarModelo(dataset, valor_slider/100)
+      # Criar matriz numérica
+      matriz <- as.matrix(avaliacao_modelo$table)
+      
+      output$plot_confusao <- renderPlot({
+        req(avaliacao_modelo)
+        print("Renderizando o heatmap...")  # Verifica se o código está a ser executado
+        pheatmap(matriz, 
+                 cluster_rows = FALSE,  # Sem agrupamento nas linhas
+                 cluster_cols = FALSE,  # Sem agrupamento nas colunas
+                 show_colnames = TRUE,
+                 show_rownames = TRUE,
+                 display_numbers = TRUE,  # Mostrar valores dentro das células
+                 color = colorRampPalette(c("white", "red"))(100))  # Gradiente de cor
+      })
+      output$table_avaliacao <- renderTable({
+        metrics <- as.data.frame(avaliacao_modelo$byClass)
+        metrics <- cbind(Metricas = rownames(metrics), metrics)
+        metrics
+      })
       
     } else {
       print("Nenhum dataset foi carregado.")
@@ -120,7 +149,7 @@ server <- function(input, output, session) {
   estado_pagina <- reactiveVal("login")  # Começa na página de login
   
   # Quando o estado do login muda, mostrar ou esconder o menu lateral
-  observe({
+  shiny::observe({
     if (estado_login()) {
       shinyjs::show("menu_superior")
       shinyjs::show("menu_lateral")
@@ -200,7 +229,7 @@ server <- function(input, output, session) {
   ")
   
   # Observar mudanças no tamanho da janela e ajustar o botão "New"
-  observe({
+  shiny::observe({
     # Dependência reativa: input$window_width
     req(input$window_width)  # Garante que o valor esteja definido
     

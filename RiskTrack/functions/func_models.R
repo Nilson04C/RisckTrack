@@ -27,6 +27,7 @@ criarModelo<- function(dataset, para_treino){
   modelo = treinarModeloComParametrosOtimizado(treino, target, features)
   #modelo = treinarModelo(treino, target, features)
   avaliacao = avaliarModelo(modelo, target, teste)
+  return(avaliacao)
 }
 
 
@@ -185,7 +186,7 @@ treinarModeloComParametrosOtimizado <- function(dados, target, features) {
   
   # Definir a grade de parâmetros apenas para cp
   tuneGrid <- expand.grid(
-    cp = c(0.001, 0.005, 0.05, 0.01, 0.1, 0.3),  # Parâmetro de complexidade da árvore
+    cp = c(0.001, 0.005, 0.05, 0.01, 0.1, 0.3) # Parâmetro de complexidade da árvore
   )
   
   # Definir o controle de treinamento com validação cruzada
