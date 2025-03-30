@@ -25,7 +25,7 @@ mod_models_server <- function(id, estado_pagina, pool) {
       dbGetQuery(pool, "SELECT COUNT(*) as total FROM modelo;")$total[1]
     })
     
-    # Buscar todos os modelos do banco de dados
+    # Buscar todos os modelos da base de dados
     modelos_df <- reactive({
       dbGetQuery(pool, "SELECT id, nome FROM modelo ORDER BY id;")
     })

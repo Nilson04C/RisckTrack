@@ -19,11 +19,13 @@ pool <- dbPool(
   password = "123456"
 )
 
+
 # Carregar os módulos
 source("modules/mod_login.R")
 source("modules/mod_models.R")
 source("modules/mod_dashboard.R")
 source("functions/func_models.R")
+source("functions/func_previsao.R")
 
 ui <- fluidPage(
   
@@ -52,7 +54,7 @@ ui <- fluidPage(
           #DropDown List
           div(id = "dropdown_new", class ="dropdown-list",
               actionLink("new_modelo", "Modelo", class = "dropdown-option"),
-              actionLink("new_previsoes", "Previsões", class = "dropdown-option")
+              actionLink("new_previsao", "Previsão", class = "dropdown-option")
           )
       ),
       
@@ -78,11 +80,11 @@ ui <- fluidPage(
   
   
   # formulário que aparaece ao clicar numa das opções do new
-  uiOutput("Formulario"),
+  uiOutput("Formulario_modelo"),
   
   bsModal(
-    id = "meu_modal",
-    title = "Meu Modal",
+    id = "modal_modelo",
+    title = "Criar Modelo",
     trigger = "new_modelo",
     size = "large",
     body = tagList(
@@ -90,9 +92,9 @@ ui <- fluidPage(
         column(6, 
                textInput("file_name", "Nome do arquivo:"),
                fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
+               sliderInput("slider", "Slider", min = 30, max = 80, value = 60),
                actionButton("submit_dataset", "Enviar"),
-               sliderInput("slider", "Slider", 
-                           min = 30, max = 80, value = 60),
+               actionButton("save_model","salavr Modelo",disabled = TRUE),
         ),
         column(6, 
                plotOutput("plot_confusao"),
@@ -100,17 +102,92 @@ ui <- fluidPage(
         )
       )
     )
+  ),
+  
+  bsModal(
+    id = "modal_previsao",
+    title = "Fazer Previsão",
+    trigger = "new_previsao",
+    size = "large",
+    body = tagList(
+      fluidRow(
+        column(6, 
+               textInput("file_name_pred", "Nome do arquivo:"),
+               fileInput("file_upload_pred", "Escolha o arquivo", accept = ".csv"),
+               selectInput("select_model_pred", "escolha um modelo", choices = NULL ),
+               actionButton("submit_dataset_pred", "Enviar"),
+               actionButton("save_prediction","salavr Previsao",disabled = TRUE),
+        ),
+        column(6, 
+               #plotOutput(""),
+               #tableOutput("")
+        )
+      )
+    )
   )
 )
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 server <- function(input, output, session) {
+  
+  valores <- reactiveValues(modelo = NULL, avaliacao = NULL) #valores globais
+  
+  
+  
+  #preencher a lista de opções de modelos ao fazer uma previsão
+  observeEvent(input$new_previsao, {
+    
+    modelos <- getmodels_list(pool)
+    
+    # Atualizar a dropdownList das previsões com nome e o id dos modelos
+    updateSelectInput(session, "select_model_pred", choices = modelos)
+    
+    
+    observeEvent(input$submit_dataset_pred, {
+      
+      
+      if (!is.null(input$file_upload_pred) && !is.null(input$select_model_pred)) {
+        print("we´re in")
+        
+        dataset <- read.csv(input$file_upload_pred$datapath, sep = ";")
+        print("Dataset carregado:")
+        
+        model_id <- input$select_model_pred
+        
+        caminho <- getmodel_path(pool, model_id)
+        
+        modelo <- readRDS(caminho)
+        
+        fazer_previsao( modelo, dataset )
+      }
+      
+    })
+  })
   
   observeEvent(input$submit_dataset,{
     
     # Obter o valor do slider
     valor_slider <- input$slider
     print(paste("Valor do slider:", valor_slider))
-    
+
     # Verificar se o dataset foi carregado
     if (!is.null(input$file_upload)) {
       
@@ -118,7 +195,15 @@ server <- function(input, output, session) {
       dataset <- read.csv(input$file_upload$datapath, sep = ";")
       print("Dataset carregado:")
       
-      avaliacao_modelo <- criarModelo(dataset, valor_slider/100)
+      #criar o modelo e avaliar
+      resultado <- criarModelo(dataset, valor_slider/100)
+      avaliacao_modelo = resultado$avaliacao
+      modelo_treinado = resultado$modelo
+      
+      #guardar os dados em variaveis globais
+      valores$modelo <- modelo_treinado
+      valores$avaliacao <- avaliacao_modelo
+      
       # Criar matriz numérica
       matriz <- as.matrix(avaliacao_modelo$table)
       
@@ -138,9 +223,28 @@ server <- function(input, output, session) {
         metrics <- cbind(Metricas = rownames(metrics), metrics)
         metrics
       })
+      shinyjs::enable("save_model")
       
     } else {
       print("Nenhum dataset foi carregado.")
+    }
+  })
+  
+  #Guardar Modelo
+  observeEvent(input$save_model,{
+    
+    name = input$file_name
+    if(nzchar(name)){ # se name tiver caracteres
+      saveRDS(valores$modelo, paste0(name, ".rds"))
+      print("Modelo Salvo")
+      
+      utilizador_id <- 2 #a ser substituido por valor verdadeiro
+      
+      query = paste0("INSERT INTO modelo (nome, algoritmo, data_criacao, utilizador_id, caminho) 
+      VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", utilizador_id, ", '",getwd(),"/",name,".rds');")
+      
+      dbExecute(pool, query)
+      
     }
   })
   

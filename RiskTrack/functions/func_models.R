@@ -2,6 +2,28 @@ library(caret)
 library(rpart)
 library(tidymodels)
 
+
+getmodel_path <- function(pool, id){
+  
+  query <- paste0("SELECT caminho FROM modelo where id =", id)
+  resultado <- dbGetQuery(pool, query)
+  
+  return (as.character(resultado))
+}
+
+
+
+getmodels_list <- function(pool){
+  
+  query <- "SELECT id, nome FROM modelo"
+  resultados <- dbGetQuery(pool, query)
+  
+  modelos <- setNames(resultados$id, resultados$nome)
+  
+  return (modelos)
+  
+}
+
 # 
 criarModelo<- function(dataset, para_treino){
   
@@ -27,7 +49,7 @@ criarModelo<- function(dataset, para_treino){
   modelo = treinarModeloComParametrosOtimizado(treino, target, features)
   #modelo = treinarModelo(treino, target, features)
   avaliacao = avaliarModelo(modelo, target, teste)
-  return(avaliacao)
+  return(list(modelo = modelo, avaliacao = avaliacao))
 }
 
 
@@ -149,7 +171,7 @@ avaliarModelo <- function(modelo, target, dados){
   cat("Hora de avaliar      ")
   
   # Realizar previsões
-  previsoes <- predict(modelo, newdata = dados, type = "raw")  # para classificação
+  previsoes <- predict(modelo, newdata = dados, type = "raw")  # "raw" é usado para classificação quando usa-se tidymodels, usando o rpart podemos usar o "class"
   
   #print(unique(dados[[target]]))
   #print(levels(previsoes))  # Veja os níveis das previsões
