@@ -7,6 +7,7 @@ library(bslib)
 library(shinyBS)
 #heatmap para amatriz de confusão
 library(pheatmap)
+library(DT)
 
 
 # Criar um pool de conexão para gerenciar conexões ao banco de dados
@@ -111,16 +112,15 @@ ui <- fluidPage(
     size = "large",
     body = tagList(
       fluidRow(
-        column(6, 
+        column(5, 
                textInput("file_name_pred", "Nome do arquivo:"),
                fileInput("file_upload_pred", "Escolha o arquivo", accept = ".csv"),
                selectInput("select_model_pred", "escolha um modelo", choices = NULL ),
-               actionButton("submit_dataset_pred", "Enviar"),
-               actionButton("save_prediction","salavr Previsao",disabled = TRUE),
+               actionButton("submit_dataset_pred", "Fazer Previsão"),
         ),
-        column(6, 
-               #plotOutput(""),
-               #tableOutput("")
+        column(7, 
+               #plotOutput("fail_rate"),
+               DTOutput("pred_table")
         )
       )
     )
@@ -152,7 +152,7 @@ server <- function(input, output, session) {
   
   
   
-  #preencher a lista de opções de modelos ao fazer uma previsão
+  # se o botao para ver o modal de previsão for clicado
   observeEvent(input$new_previsao, {
     
     modelos <- getmodels_list(pool)
@@ -160,23 +160,40 @@ server <- function(input, output, session) {
     # Atualizar a dropdownList das previsões com nome e o id dos modelos
     updateSelectInput(session, "select_model_pred", choices = modelos)
     
-    
+    # se o botão de fazer uma previsão for clicado
     observeEvent(input$submit_dataset_pred, {
       
+      nome <- input$file_name_pred
       
-      if (!is.null(input$file_upload_pred) && !is.null(input$select_model_pred)) {
-        print("we´re in")
+      
+      if (!is.null(input$file_upload_pred) && !is.null(input$select_model_pred) && nzchar(nome)) {
         
         dataset <- read.csv(input$file_upload_pred$datapath, sep = ";")
         print("Dataset carregado:")
         
-        model_id <- input$select_model_pred
+        modelo_id <- input$select_model_pred
         
-        caminho <- getmodel_path(pool, model_id)
+        caminho <- getmodel_path(pool, modelo_id)
         
         modelo <- readRDS(caminho)
         
-        fazer_previsao( modelo, dataset )
+        previsao <- fazer_previsao( modelo, dataset )
+        
+        
+        #output$fail_rate <- renderPlot()
+        
+        # tabela que exibe os dados da previsão
+        output$pred_table <- renderDT({
+          datatable(previsao, 
+                    extensions = "Buttons", 
+                    options = list(
+                      scrollX = TRUE,
+                      pageLength = 15, # Número de linhas visíveis por página
+                      dom = 'Bfrtip', # Ativa botões
+                      buttons = c('csv', 'excel', 'pdf') # Exportação
+                    ))
+           })
+        savepred(nome, previsao, pool, modelo_id)
       }
       
     })
