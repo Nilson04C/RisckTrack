@@ -25,8 +25,10 @@ pool <- dbPool(
 source("modules/mod_login.R")
 source("modules/mod_models.R")
 source("modules/mod_dashboard.R")
+source("modules/mod_prediction.R")
 source("functions/func_models.R")
 source("functions/func_previsao.R")
+
 
 ui <- fluidPage(
   
@@ -50,7 +52,7 @@ ui <- fluidPage(
           
           # Botão "new"
           actionLink("add_btn", "New", 
-                       style = "color: white;"),
+                       style = "color: white; display: none;"),
           
           #DropDown List
           div(id = "dropdown_new", class ="dropdown-list",
@@ -70,7 +72,8 @@ ui <- fluidPage(
       
       style = "display: none;",  # Esconde o menu lateral inicialmente
       fluidRow( class= "menu-item", actionButton("btn_models", "Modelos")),
-      fluidRow( class= "menu-item", actionButton("btn_dashboard", "Dashboard"))
+      fluidRow( class= "menu-item", actionButton("btn_dashboard", "Dashboard")),
+      fluidRow( class= "menu-item", actionButton("btn_prediction", "Previsões"))
       
     ),
     
@@ -188,11 +191,13 @@ server <- function(input, output, session) {
                     extensions = "Buttons", 
                     options = list(
                       scrollX = TRUE,
-                      pageLength = 15, # Número de linhas visíveis por página
+                      pageLength = 10, # Número de linhas visíveis por página
                       dom = 'Bfrtip', # Ativa botões
                       buttons = c('csv', 'excel', 'pdf') # Exportação
                     ))
            })
+        
+        #SALVAR A PREVISÃO
         savepred(nome, previsao, pool, modelo_id)
       }
       
@@ -266,12 +271,12 @@ server <- function(input, output, session) {
   })
   
   
-  estado_login <- reactiveVal(FALSE)  # Estado de login (TRUE = logado, FALSE = não logado)
-  estado_pagina <- reactiveVal("login")  # Começa na página de login
+  logado <- reactiveVal(FALSE)  # Estado de login (TRUE = logado, FALSE = não logado)
+  pagina_atual <- reactiveVal("login")  # Começa na página de login
   
   # Quando o estado do login muda, mostrar ou esconder o menu lateral
   shiny::observe({
-    if (estado_login()) {
+    if (logado()) {
       shinyjs::show("menu_superior")
       shinyjs::show("menu_lateral")
       shinyjs::show("add_btn")
@@ -294,16 +299,17 @@ server <- function(input, output, session) {
   })
   
   output$pagina <- renderUI({
-    if (!estado_login()) {
+    if (!logado()) {
       # Se não estiver logado, exibe a página de login
       mod_login_ui("login")
       
     } else {
       # Se estiver logado, mostra o conteúdo da página (Modelos ou Dashboard)
       switch(
-        estado_pagina(),
+        pagina_atual(),
         models = mod_models_ui("models"),
         dashboard = mod_dashboard_ui("dashboard"),
+        prediction = mod_prediction_ui("prediction"),
         # Adicionar outros casos aqui se necessário
         mod_dashboard_ui("dashboard")  # Valor padrão, caso nenhuma condição seja atendida
       )
@@ -312,8 +318,9 @@ server <- function(input, output, session) {
   
   
   # Observa cliques nos botões do menu superior
-  observeEvent(input$btn_models, { estado_pagina("models") })
-  observeEvent(input$btn_dashboard, { estado_pagina("dashboard") })
+  observeEvent(input$btn_models, { pagina_atual("models") })
+  observeEvent(input$btn_dashboard, { pagina_atual("dashboard") })
+  observeEvent(input$btn_prediction, { pagina_atual("prediction") })
   
   
   # Mostrar/esconder o dropdown ao clicar no botão "New"
@@ -366,9 +373,10 @@ server <- function(input, output, session) {
 
   
   
-  mod_login_server("login", estado_login)
-  mod_models_server("models", estado_pagina, pool)
-  mod_dashboard_server("dashboard", estado_pagina)
+  mod_login_server("login", logado)
+  mod_models_server("models", pagina_atual, pool)
+  mod_dashboard_server("dashboard", pagina_atual)
+  mod_prediction_server("prediction", pagina_atual, pool)
 }
 
 shinyApp(ui, server)

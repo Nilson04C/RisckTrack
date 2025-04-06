@@ -1,8 +1,43 @@
 library(rpart)
 
+
+getPredFromModels <- function(pool, utilizador_id){
+  
+  query <- paste0("
+  SELECT 
+    modelo.nome AS modelo_usado,
+    previsao.nome as nome,
+    previsao.id as id,
+    previsao.caminho as caminho,
+    previsao.data_criacao
+    
+  FROM 
+    modelo
+    
+  JOIN 
+    previsao ON modelo.id = previsao.modelo_id
+    
+  WHERE
+    modelo.utilizador_id =",utilizador_id,"
+    
+  ORDER BY 
+    modelo.nome, previsao.data_criacao DESC;
+")
+  
+  resultado <- dbGetQuery(pool, query)
+  
+  
+  return (resultado)
+}
+
+
+
+
+
+
 fazer_previsao <- function(modelo, dataset){
   
-  previsao <- predict(modelo, newdata = dataset, type = "raw")
+  previsao <- predict(modelo, newdata = dataset, type = "class")
   
   dataset$prediction <- previsao
   #print (previsao)
