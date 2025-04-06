@@ -25,11 +25,11 @@ getmodels_list <- function(pool){
 }
 
 # 
-criarModelo<- function(dataset, para_treino){
+criarModelo<- function(dataset, percentPara_treino){
   
   cat("Boraaa   ")
   
-  dataset <- dataset[, -1]
+  #dataset <- dataset[, -1]
   
   
   datasetF = tratardados(dataset)
@@ -38,7 +38,7 @@ criarModelo<- function(dataset, para_treino){
   target <- nome_variaveis[length(nome_variaveis)]  # Última coluna como target
   features <- nome_variaveis[-length(nome_variaveis)]  # Todas menos a última
   
-  indices_treino = dividirData(datasetF, para_treino, target)
+  indices_treino = dividirData(datasetF, percentPara_treino, target)
   
   treino <- datasetF[indices_treino, ]
   teste <- datasetF[-indices_treino, ]
@@ -46,8 +46,8 @@ criarModelo<- function(dataset, para_treino){
   
   #print(head(teste[[target]]))
   
-  modelo = treinarModeloComParametrosOtimizado(treino, target, features)
-  #modelo = treinarModelo(treino, target, features)
+  #modelo = treinarModeloComParametrosOtimizado(treino, target, features)
+  modelo = treinarModelo(treino, target, features)
   avaliacao = avaliarModelo(modelo, target, teste)
   return(list(modelo = modelo, avaliacao = avaliacao))
 }
@@ -134,7 +134,7 @@ treinarModelo <- function(dados, target, features){
   
   str(dados)  # Mostra a estrutura do dataset
   
-  maxdepth = 8
+  maxdepth = 15
   cp = 0.001
   
   formula_modelo <- criarFormula(dados, target, features)
@@ -171,7 +171,7 @@ avaliarModelo <- function(modelo, target, dados){
   cat("Hora de avaliar      ")
   
   # Realizar previsões
-  previsoes <- predict(modelo, newdata = dados, type = "raw")  # "raw" é usado para classificação quando usa-se tidymodels, usando o rpart podemos usar o "class"
+  previsoes <- predict(modelo, newdata = dados, type = "class")  # "raw" é usado para classificação quando usa-se tidymodels, usando o rpart podemos usar o "class"
   
   #print(unique(dados[[target]]))
   #print(levels(previsoes))  # Veja os níveis das previsões
@@ -214,10 +214,10 @@ treinarModeloComParametrosOtimizado <- function(dados, target, features) {
   # Definir o controle de treinamento com validação cruzada
   trainControlObj <- trainControl(
     method = "cv",                     # Validação cruzada
-    number = 10,                        # 10-fold cross-validation
+    number = 5,                        # 10-fold cross-validation
     search = "grid",                    # Usar uma grade de parâmetros
     classProbs = TRUE,                  # Para cálculos de probabilidades em problemas de classificação
-    summaryFunction = twoClassSummary   # Para calcular AUC, precisão, etc.
+    #summaryFunction = twoClassSummary   # Para calcular AUC, precisão, etc.
   )
   
   # Criar a fórmula para o modelo
