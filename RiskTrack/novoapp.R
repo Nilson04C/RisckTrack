@@ -98,7 +98,7 @@ ui <- fluidPage(
                fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
                sliderInput("slider", "Slider", min = 30, max = 80, value = 60),
                actionButton("submit_dataset", "Enviar"),
-               actionButton("save_model","salavr Modelo",disabled = TRUE),
+               actionButton("save_model","salvar Modelo",disabled = TRUE),
         ),
         column(6, 
                plotOutput("plot_confusao"),
@@ -258,15 +258,19 @@ server <- function(input, output, session) {
     name = input$file_name
     if(nzchar(name)){ # se name tiver caracteres
       saveRDS(valores$modelo, paste0(name, ".rds"))
+      saveRDS(valores$avaliacao, paste0(name, "_av.rds"))
       print("Modelo Salvo")
       
       utilizador_id <- 2 #a ser substituido por valor verdadeiro
       
-      query = paste0("INSERT INTO modelo (nome, algoritmo, data_criacao, utilizador_id, caminho) 
-      VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", utilizador_id, ", '",getwd(),"/",name,".rds');")
+      num_variaveis <- length(attr(valores$modelo$terms, "term.labels"))
+      caminho <- paste0(getwd(),"/",name)
+      avaliacao_caminho <- paste0(getwd(),"/",name,"_av")
+      
+      query = paste0("INSERT INTO modelo (nome, algoritmo, data_criacao, utilizador_id, caminho, avaliacao_caminho, n_variaveis) 
+                      VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", utilizador_id, ", '",caminho,".rds','",avaliacao_caminho,".rds', ",num_variaveis,");")
       
       dbExecute(pool, query)
-      
     }
   })
   
@@ -375,7 +379,7 @@ server <- function(input, output, session) {
   
   mod_login_server("login", logado)
   mod_models_server("models", pagina_atual, pool)
-  mod_dashboard_server("dashboard", pagina_atual)
+  mod_dashboard_server("dashboard", pagina_atual, pool)
   mod_prediction_server("prediction", pagina_atual, pool)
 }
 

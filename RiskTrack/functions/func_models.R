@@ -2,6 +2,16 @@ library(caret)
 library(rpart)
 library(tidymodels)
 
+getModels <- function(pool, userId){
+  
+  query <- paste0("SELECT * FROM modelo where utilizador_id =", userId)
+                   
+  resultado <- dbGetQuery(pool, query)
+  
+  return (resultado)
+}
+
+
 
 getmodel_path <- function(pool, id){
   

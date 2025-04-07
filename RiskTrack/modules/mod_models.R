@@ -1,86 +1,86 @@
+
+source("./functions/func_models.R")
+
+
+utilizador_id <- 2
+
 # Módulo UI
+# UI
 mod_models_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    div(
-      class = "grid",
+    DTOutput(ns("models_table")),
+    
+    tags$script(HTML(sprintf("
+      $(document).on('click', '.acao-ver', function() {
+        var id = this.id.replace('ver_', '');
+        Shiny.setInputValue('%s', id, {priority: 'event'});
+      });
       
-      # Grid de modelos renderizado dinamicamente
-      uiOutput(ns("grid_modelos")),
-      
-      # Botão para trocar os modelos exibidos (inicialmente invisível)
-      uiOutput(ns("btn_pagina"))
-    )
+      $(document).on('click', '.acao-apagar', function() {
+        var id = this.id.replace('apagar_', '');
+        Shiny.setInputValue('%s', id, {priority: 'event'});
+      });
+    ", ns("ver_modelo_id"), ns("apagar_modelo_id"))))
   )
 }
+
+
+
+observeEvent(input$ver_modelo_id, {
+  id_modelo <- input$ver_modelo_id
+  print(paste("Clicaste em ver o modelo com id:", id_modelo))
+  # Aqui podes abrir um modal, mostrar info, etc.
+})
+
+
 
 # Módulo Server
 mod_models_server <- function(id, estado_pagina, pool) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+    utilizador_id <- 2  # <-- ou passa como parâmetro depois
     
-    # Buscar a quantidade total de modelos
-    models_count <- reactive({
-      dbGetQuery(pool, "SELECT COUNT(*) as total FROM modelo;")$total[1]
+    modelos <- getModels(pool, utilizador_id)
+    
+    modelos$acoes <- sprintf(
+      '<button id="ver_%s" class="btn btn-primary btn-sm acao-ver">Avaliação</button>
+       <button id="apagar_%s" class="btn btn-danger btn-sm acao-apagar">Apagar</button>',
+      modelos$id, modelos$id
+    )
+    
+    # Colunas a esconder
+    cols_to_remove <- c("id", "caminho", "avaliacao_caminho", "utilizador_id")
+    modelos_filtrados <- modelos[, setdiff(names(modelos), cols_to_remove)]
+    
+    output$models_table <- renderDT({
+      datatable(modelos_filtrados,
+                escape = FALSE,
+                selection = 'none',
+                options = list(scrollX = TRUE, pageLength = 10))
     })
     
-    # Buscar todos os modelos da base de dados
-    modelos_df <- reactive({
-      dbGetQuery(pool, "SELECT id, nome FROM modelo ORDER BY id;")
-    })
-    
-    pagina_atual <- reactiveVal(1)
-    elementos_por_pagina <- 6
-    
-    # Modelos atualmente visíveis
-    modelos_atualizados <- reactive({
-      if (nrow(modelos_df()) == 0) return(NULL)  # Se não houver modelos, retorna NULL
-      inicio <- (pagina_atual() - 1) * elementos_por_pagina + 1
-      fim <- min(inicio + elementos_por_pagina - 1, nrow(modelos_df()))
-      modelos_df()[inicio:fim, ]  # Retorna os modelos da página atual
-    })
-    
-    # Renderiza a grid de modelos dinamicamente
-    output$grid_modelos <- renderUI({
-      if (is.null(modelos_atualizados())) {
-        return(h4("Sem Modelos", style = "text-align: center; margin-top: 20px;"))
-      }
+    # Reage ao clique no botão "ver"
+    observeEvent(input$ver_modelo_id, {
       
-      div(
-        lapply(seq(1, nrow(modelos_atualizados()), by = 3), function(i) {
-          fluidRow(
-            lapply(0:2, function(j) {
-              index <- i + j
-              if (index <= nrow(modelos_atualizados())) {
-                modelo <- modelos_atualizados()[index, ]
-                column(4, div(class = "grid-item",
-                              h4(modelo$nome),
-                              actionButton(ns(paste0("opcoes_", modelo$id)), "Opções", class = "btn-options"))
-                )
-              }
-            })
-          )
-        })
-      )
+      # *função para mostrar dos a avaliação*
+      
+      showModal(modalDialog(
+        title = "Avaliação do Modelo",
+        paste("Clicaste em ver o modelo com ID:", input$ver_modelo_id)
+      ))
     })
     
-    # Renderiza o botão "Próxima Página" apenas se houver modelos
-    output$btn_pagina <- renderUI({
-      if (models_count() > elementos_por_pagina) {
-        actionButton(ns("proxima_pagina"), "Próxima Página", style = "margin-top: 20px;")
-      } else {
-        NULL  # Esconde o botão se não for necessário
-      }
-    })
-    
-    # Atualiza a página ao clicar no botão
-    observeEvent(input$proxima_pagina, {
-      if (pagina_atual() * elementos_por_pagina < models_count()) {
-        pagina_atual(pagina_atual() + 1)
-      } else {
-        pagina_atual(1)
-      }
+    # Reage ao clique no botão "apagar"
+    observeEvent(input$apagar_modelo_id, {
+      
+      # *função para apagar o modelo*
+      
+      showModal(modalDialog(
+        title = "Apagar Modelo",
+        paste("Clicaste em apagar o modelo com ID:", input$apagar_modelo_id)
+      ))
     })
   })
 }
