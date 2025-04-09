@@ -12,10 +12,10 @@ getPredFromModels <- function(pool, utilizador_id){
     previsao.data_criacao
     
   FROM 
-    modelo
+    previsao
     
-  JOIN 
-    previsao ON modelo.id = previsao.modelo_id
+  LEFT JOIN 
+    modelo ON modelo.id = previsao.modelo_id
     
   WHERE
     modelo.utilizador_id =",utilizador_id,"

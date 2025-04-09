@@ -199,6 +199,8 @@ server <- function(input, output, session) {
         
         #SALVAR A PREVISÃO
         savepred(nome, previsao, pool, modelo_id)
+        
+        atualizar_tabela_previsoes()
       }
       
     })
@@ -271,6 +273,7 @@ server <- function(input, output, session) {
                       VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", utilizador_id, ", '",caminho,".rds','",avaliacao_caminho,".rds', ",num_variaveis,");")
       
       dbExecute(pool, query)
+
     }
   })
   
@@ -378,7 +381,7 @@ server <- function(input, output, session) {
   
   
   mod_login_server("login", logado)
-  mod_models_server("models", pagina_atual, pool)
+   mod_models_server("models", pool)
   mod_dashboard_server("dashboard", pagina_atual, pool)
   mod_prediction_server("prediction", pagina_atual, pool)
 }

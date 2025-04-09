@@ -92,7 +92,6 @@ tratardados <- function(dataset) {
       if (is.numeric(coluna)) {
         media <- mean(coluna, na.rm = TRUE)
         coluna[is.na(coluna)] <- media
-        cat("lá dentro")
         
       } else {
         # Substituir NAs pela moda (classe mais frequente)
@@ -142,7 +141,7 @@ dividirData <- function(dataset, para_treino, target){
 
 treinarModelo <- function(dados, target, features){
   
-  str(dados)  # Mostra a estrutura do dataset
+  #str(dados)  # Mostra a estrutura do dataset
   
   maxdepth = 15
   cp = 0.001
@@ -191,7 +190,7 @@ avaliarModelo <- function(modelo, target, dados){
   matriz_confusao <- confusionMatrix(previsoes, dados[[target]])
   
   # Retornar as métricas de avaliação
-  print(matriz_confusao)
+  #print(matriz_confusao)
   
   return(matriz_confusao)
 }
