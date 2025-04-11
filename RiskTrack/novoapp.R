@@ -83,7 +83,8 @@ ui <- fluidPage(
   ),
   
   
-  # formulário que aparaece ao clicar numa das opções do new
+  # formulário que aparaece ao clicar na opção do Modelo <- new
+  
   uiOutput("Formulario_modelo"),
   
   bsModal(
@@ -96,13 +97,17 @@ ui <- fluidPage(
         column(6, 
                textInput("file_name", "Nome do arquivo:"),
                fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
-               sliderInput("slider", "Slider", min = 30, max = 80, value = 60),
+               sliderInput("sliderTrainPr", "Percentagem de Treino", min = 50, max = 80, value = 60),
+               checkboxInput("crossV_box","usar Cross Validation"),
                actionButton("submit_dataset", "Enviar"),
                actionButton("save_model","salvar Modelo",disabled = TRUE),
         ),
         column(6, 
                plotOutput("plot_confusao"),
-               tableOutput("table_avaliacao")
+               div( #o div é para a tabela ser scrolable
+                 style = "overflow-x: auto; max-width: 100%;",
+                 tableOutput("table_avaliacao")
+               )
         )
       )
     )
@@ -200,7 +205,6 @@ server <- function(input, output, session) {
         #SALVAR A PREVISÃO
         savepred(nome, previsao, pool, modelo_id)
         
-        atualizar_tabela_previsoes()
       }
       
     })
@@ -209,9 +213,13 @@ server <- function(input, output, session) {
   observeEvent(input$submit_dataset,{
     
     # Obter o valor do slider
-    valor_slider <- input$slider
+    valor_slider <- input$sliderTrainPr
     print(paste("Valor do slider:", valor_slider))
-
+    
+    crossV <- input$crossV_box
+    #print(crossV)
+    
+    
     # Verificar se o dataset foi carregado
     if (!is.null(input$file_upload)) {
       
@@ -220,7 +228,7 @@ server <- function(input, output, session) {
       print("Dataset carregado:")
       
       #criar o modelo e avaliar
-      resultado <- criarModelo(dataset, valor_slider/100)
+      resultado <- criarModelo(dataset, valor_slider/100, crossV)
       avaliacao_modelo = resultado$avaliacao
       modelo_treinado = resultado$modelo
       
@@ -244,9 +252,11 @@ server <- function(input, output, session) {
       })
       output$table_avaliacao <- renderTable({
         metrics <- as.data.frame(avaliacao_modelo$byClass)
-        metrics <- cbind(Metricas = rownames(metrics), metrics)
+        metrics <- cbind(Métrica = rownames(metrics), metrics)
+        rownames(metrics) <- NULL
         metrics
       })
+      
       shinyjs::enable("save_model")
       
     } else {

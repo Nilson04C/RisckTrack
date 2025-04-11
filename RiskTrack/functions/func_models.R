@@ -2,6 +2,8 @@ library(caret)
 library(rpart)
 library(tidymodels)
 
+
+
 getModels <- function(pool, userId){
   
   query <- paste0("SELECT * FROM modelo where utilizador_id =", userId)
@@ -35,7 +37,7 @@ getmodels_list <- function(pool){
 }
 
 # 
-criarModelo<- function(dataset, percentPara_treino){
+criarModelo<- function(dataset, percentPara_treino, useCrossV){
   
   cat("Boraaa   ")
   
@@ -56,8 +58,17 @@ criarModelo<- function(dataset, percentPara_treino){
   
   #print(head(teste[[target]]))
   
-  #modelo = treinarModeloComParametrosOtimizado(treino, target, features)
-  modelo = treinarModelo(treino, target, features)
+  
+  #Usar Cross Validarion ou não? eis a questão
+  if(useCrossV){
+    
+    res <- treinarModeloCrossV(treino, target, features)
+    modelo <- res$modelo
+    }
+  
+  else{modelo = treinarModelo(treino, target, features)}
+  
+  
   avaliacao = avaliarModelo(modelo, target, teste)
   return(list(modelo = modelo, avaliacao = avaliacao))
 }
@@ -201,58 +212,92 @@ avaliarModelo <- function(modelo, target, dados){
 
 
 
-treinarModeloComParametrosOtimizado <- function(dados, target, features) {
+treinarModeloCrossV <- function(dados, target, features, 
+                                cp_values = c(0.001, 0.005, 0.01, 0.05), 
+                                maxdepth_values = c(5, 10, 15), 
+                                k = 5) {
   
-  #dados[[target]] <- factor(dados[[target]], levels = make.names(levels(dados[[target]])))
-  
-  #str(dados)  # Mostra a estrutura do dataset
-  
-  # Imprimir os níveis (classes) do target (coluna 'Passed')
-  #print(levels(dados[[target]]))
-  
-  
-  #print(sum(is.na(dados)))  # Mostra quantos NAs existem no dataset
-  #print(colSums(is.na(dados)))  # Mostra quantos NAs há em cada coluna
-  
-  
-  # Definir a grade de parâmetros apenas para cp
-  tuneGrid <- expand.grid(
-    cp = c(0.001, 0.005, 0.05, 0.01, 0.1, 0.3) # Parâmetro de complexidade da árvore
-  )
-  
-  # Definir o controle de treinamento com validação cruzada
-  trainControlObj <- trainControl(
-    method = "cv",                     # Validação cruzada
-    number = 5,                        # 10-fold cross-validation
-    search = "grid",                    # Usar uma grade de parâmetros
-    classProbs = TRUE,                  # Para cálculos de probabilidades em problemas de classificação
-    #summaryFunction = twoClassSummary   # Para calcular AUC, precisão, etc.
-  )
-  
-  # Criar a fórmula para o modelo
   formula_modelo <- criarFormula(dados, target, features)
   
-  cat("Treinando Modelo com parâmetros otimizados  \n")
+  
+  # Criar grid de parâmetros
+  grid <- expand.grid(cp = cp_values, maxdepth = maxdepth_values)
+  
+  
+  # Criar folds
+  set.seed(123)
+  folds <- createFolds(dados[[target]], k = k, list = TRUE)
+  
+  resultados <- data.frame(cp = numeric(), maxdepth = numeric(), Accuracy = numeric())
   
   
   
-  # Treinamento do modelo com ajuste do parâmetro cp
-  modelo <- train(
-    formula_modelo,                     
-    data = dados,                        
-    method = "rpart",                    
-    trControl = trainControlObj,         
-    tuneGrid = tuneGrid,                 
-    metric = "Accuracy",                 
-    control = rpart.control(maxdepth = 10)  # Controla a profundidade da árvore
-  )
+  for (i in 1:nrow(grid)) {
+    cp <- grid$cp[i]
+    maxd <- grid$maxdepth[i]
+    
+    accs <- c()
+    
+    for (fold in folds) {
+      treino <- dados[-fold, ]
+      teste <- dados[fold, ]
+      
+      modelo <- rpart(formula_modelo,
+                      data = treino,
+                      method = "class",
+                      control = rpart.control(cp = cp, maxdepth = maxd))
+      
+      pred <- predict(modelo, teste, type = "class")
+      
+      f1 <- f1_score(teste[[target]], pred)
+      accs <- c(accs, f1)
+      
+    }
+
+    resultados <- rbind(resultados, data.frame(cp = cp, maxdepth = maxd, f1_score  = mean(accs)))
+  }
   
-  print(modelo$bestTune)  # Ver qual foi o melhor valor de cp encontrado
+  melhor_linha <- resultados[which.max(resultados$f1_score), ]
+  print(melhor_linha)
   
+  # Treinar modelo final com os melhores parâmetros
+  modelo_final <- rpart(formula_modelo,
+                        data = dados,
+                        method = "class",
+                        control = rpart.control(cp = melhor_linha$cp,
+                                                maxdepth = melhor_linha$maxdepth))
   
   cat("Modelo Treinado com parâmetros otimizados  \n")
   
-  return(modelo)
+  return(list(modelo = modelo_final, resultados_cv = resultados))
+}
+  
+
+
+f1_score <- function(y_true, y_pred, average = "macro") {
+  cm <- confusionMatrix(as.factor(y_pred), as.factor(y_true))
+  
+  precision <- cm$byClass[, "Precision"]
+  recall <- cm$byClass[, "Recall"]
+  support <- as.numeric(table(y_true))  # Nº de exemplos por classe
+  
+  f1 <- ifelse(precision + recall == 0, 0,
+               2 * precision * recall / (precision + recall))
+  
+  if (average == "macro") {
+    return(mean(f1, na.rm = TRUE))
+  } else if (average == "weighted") {
+    return(sum(f1 * support, na.rm = TRUE) / sum(support))
+  } else if (average == "micro") {
+    # TP e FN totais
+    total_tp <- sum(diag(cm$table))
+    total_fn <- sum(cm$table) - total_tp
+    precision_micro <- total_tp / sum(cm$table)
+    recall_micro <- total_tp / (total_tp + total_fn)
+    return(2 * precision_micro * recall_micro / (precision_micro + recall_micro))
+  } else {
+    stop("Average inválido. Usa: 'macro', 'weighted' ou 'micro'.")
+  }
 }
 
 
