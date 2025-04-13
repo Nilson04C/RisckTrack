@@ -156,7 +156,11 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  valores <- reactiveValues(modelo = NULL, avaliacao = NULL) #valores globais
+  valores <- reactiveValues(modelo = NULL, avaliacao = NULL, valor_slider = NULL, crossV = NULL  ) #valores globais
+  
+  MdlReadyToCreate <- reactiveVal(FALSE)
+  
+  modal_page <- reactiveVal("menu")  # Começa no menu principal
   
   
   
@@ -213,10 +217,10 @@ server <- function(input, output, session) {
   observeEvent(input$submit_dataset,{
     
     # Obter o valor do slider
-    valor_slider <- input$sliderTrainPr
-    print(paste("Valor do slider:", valor_slider))
+    valores$valor_slider <- input$sliderTrainPr
+    print(paste("Valor do slider:", valores$valor_slider))
     
-    crossV <- input$crossV_box
+    valores$crossV <- input$crossV_box
     #print(crossV)
     
     
@@ -227,42 +231,126 @@ server <- function(input, output, session) {
       dataset <- read.csv(input$file_upload$datapath, sep = ";")
       print("Dataset carregado:")
       
-      #criar o modelo e avaliar
-      resultado <- criarModelo(dataset, valor_slider/100, crossV)
-      avaliacao_modelo = resultado$avaliacao
-      modelo_treinado = resultado$modelo
+      dataset <<- subsPorNA(dataset)
       
-      #guardar os dados em variaveis globais
-      valores$modelo <- modelo_treinado
-      valores$avaliacao <- avaliacao_modelo
       
-      # Criar matriz numérica
-      matriz <- as.matrix(avaliacao_modelo$table)
+      # Mostra o primeiro modal se houver NAs
+      if (any(is.na(dataset))) {
       
-      output$plot_confusao <- renderPlot({
-        req(avaliacao_modelo)
-        print("Renderizando o heatmap...")  # Verifica se o código está a ser executado
-        pheatmap(matriz, 
-                 cluster_rows = FALSE,  # Sem agrupamento nas linhas
-                 cluster_cols = FALSE,  # Sem agrupamento nas colunas
-                 show_colnames = TRUE,
-                 show_rownames = TRUE,
-                 display_numbers = TRUE,  # Mostrar valores dentro das células
-                 color = colorRampPalette(c("white", "red"))(100))  # Gradiente de cor
-      })
-      output$table_avaliacao <- renderTable({
-        metrics <- as.data.frame(avaliacao_modelo$byClass)
-        metrics <- cbind(Métrica = rownames(metrics), metrics)
-        rownames(metrics) <- NULL
-        metrics
-      })
-      
-      shinyjs::enable("save_model")
+        # Modal principal com conteúdo condicional
+        showModal(modalDialog(
+          title = "Dados Incompletos Detectados",
+          uiOutput("modal_conteudo_dinamico"),
+          easyClose = FALSE,
+          footer = NULL
+        ))
+        
+      } else{MdlReadyToCreate(TRUE)}
       
     } else {
       print("Nenhum dataset foi carregado.")
     }
+    
   })
+  
+  
+  
+  
+  observeEvent(MdlReadyToCreate(),{
+    print(paste("MdlReadyToCreate:", MdlReadyToCreate()))
+    
+    if(MdlReadyToCreate())
+    {
+    
+    #criar o modelo e avaliar
+    resultado <- criarModelo(dataset, valores$valor_slider/100, valores$crossV)
+    avaliacao_modelo = resultado$avaliacao
+    modelo_treinado = resultado$modelo
+    
+    #guardar os dados em variaveis globais
+    valores$modelo <- modelo_treinado
+    valores$avaliacao <- avaliacao_modelo
+    
+    # Criar matriz numérica
+    matriz <- as.matrix(avaliacao_modelo$table)
+    
+    output$plot_confusao <- renderPlot({
+      req(avaliacao_modelo)
+      print("Renderizando o heatmap...")  # Verifica se o código está a ser executado
+      pheatmap(matriz, 
+               cluster_rows = FALSE,  # Sem agrupamento nas linhas
+               cluster_cols = FALSE,  # Sem agrupamento nas colunas
+               show_colnames = TRUE,
+               show_rownames = TRUE,
+               display_numbers = TRUE,  # Mostrar valores dentro das células
+               color = colorRampPalette(c("white", "red"))(100))  # Gradiente de cor
+    })
+    output$table_avaliacao <- renderTable({
+      metrics <- as.data.frame(avaliacao_modelo$byClass)
+      metrics <- cbind(Métrica = rownames(metrics), metrics)
+      rownames(metrics) <- NULL
+      metrics
+    })
+    
+    shinyjs::enable("save_model")
+    MdlReadyToCreate(FALSE)  # Volta a ser FALSE
+    }
+  })
+
+  
+  
+  
+  
+  # Conteúdo que muda dinamicamente conforme o estado
+  output$modal_conteudo_dinamico <- renderUI({
+    if (modal_page() == "menu") {
+      tagList(
+        div("Foram encontrados valores em falta no dataset. O que deseja fazer?"),
+        br(),
+        fluidRow(
+          column(4, actionButton("btn_apagar_missing", "Apagar Dados", class = "btn-danger")),
+          column(4, actionButton("btn_substituir_missing", "Substituir por Média/Moda", class = "btn-warning")),
+          column(4, actionButton("btn_ver_detalhes_missing", "Ver Detalhes", class = "btn-primary"))
+        )
+      )
+    } else if (modal_page() == "detalhes") {
+      tagList(
+        h5("Detalhes dos Valores em Falta"),
+        tableOutput("tabela_missing"),
+        br(),
+        actionButton("btn_voltar_menu", "Voltar", class = "btn-secondary")
+      )
+    }
+  })
+  
+  
+  observeEvent(input$btn_apagar_missing, {
+    dataset <<- na.omit(dataset)
+    removeModal()
+    MdlReadyToCreate(TRUE)  # Define como TRUE
+    
+  })
+  
+  observeEvent(input$btn_substituir_missing, {
+    dataset <<- tratardados(dataset)
+    removeModal()
+    MdlReadyToCreate(TRUE)  # Define como TRUE
+  })
+  
+  observeEvent(input$btn_ver_detalhes_missing, {
+    # Tabela de missing values
+    output$tabela_missing <- renderTable({
+      verificarMissingValues(dataset)
+    })
+    modal_page("detalhes")
+  })
+  
+  observeEvent(input$btn_voltar_menu, {
+    modal_page("menu")
+  })
+  
+  
+  
   
   #Guardar Modelo
   observeEvent(input$save_model,{

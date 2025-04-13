@@ -36,6 +36,63 @@ getmodels_list <- function(pool){
   
 }
 
+
+subsPorNA <- function(dataset) {
+  
+  
+  # Substituir valores problemáticos por NA
+  dataset[dataset %in% c("NULL", "", " ", "null", "Null", "nan", "NAN", "Nan")] <- NA
+  
+  dataset[dataset == "nan"] <- NA
+  dataset[dataset == "NULL"] <- NA
+  dataset[dataset == ""] <- NA
+  dataset[dataset == " "] <- NA
+  dataset[dataset == "null"] <- NA
+  dataset[dataset == "Null"] <- NA
+  dataset[dataset == "NAN"] <- NA
+  dataset[dataset == "Nan"] <- NA
+  
+  return (dataset)
+}
+
+
+verificarMissingValues <- function(dataset) {
+  
+  
+  # Calcular o número total de NAs por coluna
+  na_count <- colSums(is.na(dataset))
+  
+  # Manter apenas colunas com NAs
+  na_count <- na_count[na_count > 0]
+  
+  if (length(na_count) == 0) {
+    cat("Não há valores em falta no dataset.\n")
+    return(NULL)
+  }
+  
+  # Calcular percentagem de NAs
+  na_percent <- round(na_count / nrow(dataset) * 100, 2)
+  
+  # Criar dataframe com os resultados
+  estatisticas_na <- data.frame(
+    Coluna = names(na_count),
+    Total_NA = na_count,
+    Percentagem = paste0(na_percent, "%")
+  )
+  
+  rownames(estatisticas_na) <- NULL
+  
+  return(estatisticas_na)
+}
+
+
+
+
+
+
+
+
+
 # 
 criarModelo<- function(dataset, percentPara_treino, useCrossV){
   
@@ -49,7 +106,6 @@ criarModelo<- function(dataset, percentPara_treino, useCrossV){
   nome_variaveis <- names(datasetF)  # Obter os nomes das colunas
   target <- nome_variaveis[length(nome_variaveis)]  # Última coluna como target
   features <- nome_variaveis[-length(nome_variaveis)]  # Todas menos a última
-  
   indices_treino = dividirData(datasetF, percentPara_treino, target)
   
   treino <- datasetF[indices_treino, ]
@@ -83,19 +139,6 @@ tratardados <- function(dataset) {
   
   # Converter todas as colunas para character (evita problemas com classes diferentes)
   dataset[] <- lapply(dataset, function(x) if (is.character(x)) trimws(x) else x)
-  
-  # Substituir valores problemáticos por NA
-  dataset[dataset %in% c("NULL", "", " ", "null", "Null", "nan", "NAN", "Nan")] <- NA
-  
-  dataset[dataset == "nan"] <- NA
-  dataset[dataset == "NULL"] <- NA
-  dataset[dataset == ""] <- NA
-  dataset[dataset == " "] <- NA
-  dataset[dataset == "null"] <- NA
-  dataset[dataset == "Null"] <- NA
-  dataset[dataset == "NAN"] <- NA
-  dataset[dataset == "Nan"] <- NA
-  
   
   #substituir os valores em falta pela média ou moda
     dataset[] <- lapply(dataset, function(coluna) {
