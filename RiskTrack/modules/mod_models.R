@@ -13,12 +13,12 @@ mod_models_ui <- function(id) {
     DTOutput(ns("models_table")),
     
     tags$script(HTML(sprintf("
-      $(document).on('click', '.acao-ver', function() {
+      $(document).on('click', '.acao-verM', function() {
         var id = this.id.replace('ver_', '');
         Shiny.setInputValue('%s', id, {priority: 'event'});
       });
       
-      $(document).on('click', '.acao-apagar', function() {
+      $(document).on('click', '.acao-apagarM', function() {
         var id = this.id.replace('apagar_', '');
         Shiny.setInputValue('%s', id, {priority: 'event'});
       });
@@ -30,21 +30,20 @@ mod_models_ui <- function(id) {
 
 
 # Módulo Server
-mod_models_server <- function(id, pool) {
+mod_models_server <- function(id, pool, user_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    utilizador_id <- 2  # <-- ou passa como parâmetro depois
     modelos_rv <- reactiveVal()
     
     
     #Buscar dados para a tabela
     atualizar_tabela_modelos <- function() {
       
-      modelos <- getModels(pool, utilizador_id)
+      modelos <- getModels(pool, user_id)
       
       modelos$acoes <- sprintf(
-        '<button id="ver_%s" class="btn btn-primary btn-sm acao-ver">Avaliação</button>
-         <button id="apagar_%s" class="btn btn-danger btn-sm acao-apagar">Apagar</button>',
+        '<button id="ver_%s" class="btn btn-primary btn-sm acao-verM">Avaliação</button>
+         <button id="apagar_%s" class="btn btn-danger btn-sm acao-apagarM">Apagar</button>',
         modelos$id, modelos$id
       )
       
@@ -61,15 +60,45 @@ mod_models_server <- function(id, pool) {
       })
     }
     
+    
+    
+    
     # Reage ao clique no botão "ver"
     observeEvent(input$ver_modelo_id, {
       
-      # *função para mostrar dos a avaliação*
+      modelo <- modelos_rv()[modelos_rv()$id == input$ver_modelo_id, ]
+      
+      dados <- getAvData(modelo$caminho)
+      
+      matriz <- as.matrix(dados$table)
       
       showModal(modalDialog(
-        title = "Avaliação do Modelo",
-        paste("Clicaste em ver o modelo com ID:", input$ver_modelo_id)
-      ))
+        
+                            renderPlot({
+                              req(dados)
+                              pheatmap(matriz, 
+                                       cluster_rows = FALSE,  # Sem agrupamento nas linhas
+                                       cluster_cols = FALSE,  # Sem agrupamento nas colunas
+                                       show_colnames = TRUE,
+                                       show_rownames = TRUE,
+                                       display_numbers = TRUE,  # Mostrar valores dentro das células
+                                       color = colorRampPalette(c("white", "red"))(100))  # Gradiente de cor
+                            }),
+                            
+                            # Envolver renderTable com div para rolagem horizontal
+                            div(style = "overflow-x: auto;", 
+                                renderTable({
+                                  metrics <- as.data.frame(dados$byClass)
+                                  metrics <- cbind(Métrica = rownames(metrics), metrics)
+                                  rownames(metrics) <- NULL
+                                  metrics
+                                })
+                            ),
+                            
+                            title = modelo$nome,
+                            size = "m",
+                            easyClose = TRUE
+                          ))
     })
     
     

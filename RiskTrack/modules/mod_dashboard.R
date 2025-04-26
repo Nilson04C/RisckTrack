@@ -16,7 +16,7 @@ mod_dashboard_ui<- function(id) {
 }
 
 # Módulo Server
-mod_dashboard_server <- function(id, estado_pagina, pool) {
+mod_dashboard_server <- function(id, estado_pagina, pool, user_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     

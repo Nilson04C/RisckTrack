@@ -1,3 +1,9 @@
+library(shiny)
+library(RPostgres)
+library(pool)
+library(sodium)
+
+# UI
 mod_login_ui <- function(id) {
   ns <- NS(id)
   
@@ -8,28 +14,94 @@ mod_login_ui <- function(id) {
       textInput(ns("email"), "Email:"),
       passwordInput(ns("senha"), "Senha:"),
       actionButton(ns("entrar"), "Entrar", class = "btn-primary"),
+      actionButton(ns("criar_conta"), "Criar Conta", class = "btn-secondary"),
       verbatimTextOutput(ns("mensagem"))
     )
   )
 }
 
-mod_login_server <- function(id, estado_login) {
+# SERVER
+mod_login_server <- function(id, estado_login, pool, user_id) {
   moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+    
     observeEvent(input$entrar, {
-      # Aqui podes substituir por uma base de dados real
-      credenciais_validas <- input$email == "" && input$senha == ""
+      req(input$email, input$senha)
       
+      con <- poolCheckout(pool)
+      on.exit(poolReturn(con))
       
+      query <- dbSendQuery(con, "SELECT id, senha FROM utilizador WHERE email = $1")
+      dbBind(query, list(input$email))
+      resultado <- dbFetch(query)
+      dbClearResult(query)
       
-      estado_login(TRUE)
-      
-      
-      
-      if (credenciais_validas) {
-        estado_login(TRUE)  # Atualiza o estado para "logado"
+      if (nrow(resultado) == 1) {
+        senha_hash <- resultado$senha[1]
+        
+        if (password_verify(senha_hash, input$senha)) {
+          estado_login(TRUE)
+          user_id(resultado$id[1])
+        } else {
+          output$mensagem <- renderText("Senha incorreta!")
+        }
       } else {
-        output$mensagem <- renderText("Credenciais inválidas!")
+        output$mensagem <- renderText("Email não encontrado!")
       }
+    })
+    
+    observeEvent(input$criar_conta, {
+      showModal(modalDialog(
+        title = "Criar Nova Conta",
+        div(
+          style = "width: 100%; text-align: center;",
+          textInput(ns("novo_nome"), "Nome:"),
+          textInput(ns("novo_email"), "Email Institucional:"),
+          passwordInput(ns("nova_senha"), "Senha:"),
+          passwordInput(ns("confirmar_senha"), "Confirmar Senha:"),
+          actionButton(ns("confirmar_criacao"), "Criar Conta", class = "btn-primary"),
+          verbatimTextOutput(ns("mensagem_criacao"))
+        )
+      ))
+    })
+    
+    observeEvent(input$confirmar_criacao, {
+      req(input$novo_nome, input$novo_email, input$nova_senha, input$confirmar_senha)
+      
+      if (input$nova_senha != input$confirmar_senha) {
+        output$mensagem_criacao <- renderText("As senhas não coincidem!")
+        return()
+      }
+      
+      if (!grepl("@ulusofona\\.pt$", input$novo_email)) {
+        output$mensagem_criacao <- renderText("É necessário um email institucional da Lusófona.")
+        return()
+      }
+      
+      con <- poolCheckout(pool)
+      on.exit(poolReturn(con))
+      
+      # Verificar se o email já existe
+      query_check <- dbSendQuery(con, "SELECT id FROM utilizador WHERE email = $1")
+      dbBind(query_check, list(input$novo_email))
+      existente <- dbFetch(query_check)
+      dbClearResult(query_check)
+      
+      if (nrow(existente) > 0) {
+        output$mensagem_criacao <- renderText("Email já registado!")
+        return()
+      }
+      
+      # Guardar senha cifrada
+      senha_hash <- password_store(input$nova_senha)
+      
+      # Inserir novo utilizador
+      query_insert <- dbSendQuery(con, "INSERT INTO utilizador (nome, email, senha) VALUES ($1, $2, $3)")
+      dbBind(query_insert, list(input$novo_nome, input$novo_email, senha_hash))
+      dbClearResult(query_insert)
+      
+      removeModal()
+      output$mensagem <- renderText("Conta criada com sucesso! Faça login.")
     })
   })
 }

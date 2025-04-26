@@ -2,7 +2,6 @@
 source("./functions/func_previsao.R")
 
 
-utilizador_id <- 2
 
 # Módulo UI
 mod_prediction_ui <- function(id) {
@@ -12,12 +11,12 @@ mod_prediction_ui <- function(id) {
     DTOutput(ns("pred_table")),
     
     tags$script(HTML(sprintf("
-      $(document).on('click', '.acao-ver', function() {
+      $(document).on('click', '.acao-verP', function() {
         var id = this.id.replace('ver_', '');
         Shiny.setInputValue('%s', id, {priority: 'event'});
       });
       
-      $(document).on('click', '.acao-apagar', function() {
+      $(document).on('click', '.acao-apagarP', function() {
         var id = this.id.replace('apagar_', '');
         Shiny.setInputValue('%s', id, {priority: 'event'});
       });
@@ -29,21 +28,20 @@ mod_prediction_ui <- function(id) {
 
 
 # Módulo Server
-mod_prediction_server <- function(id, estado_pagina, pool) {
+mod_prediction_server <- function(id, estado_pagina, pool, user_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    utilizador_id <- 2  # <-- ou passar por parâmetro depois
     
     previsoes_rv <- reactiveVal()
     
     # obter as Previsões
     atualizar_tabela_previsoes <- function() {
     
-      previsoes <- getPredFromModels(pool, utilizador_id)
+      previsoes <- getPreds(pool, user_id)
       
       previsoes$acoes <- sprintf(
-        '<button id="ver_%s" class="btn btn-primary btn-sm acao-ver">Ver</button>
-         <button id="apagar_%s" class="btn btn-danger btn-sm acao-apagar">Apagar</button>',
+        '<button id="ver_%s" class="btn btn-primary btn-sm acao-verP">Ver</button>
+         <button id="apagar_%s" class="btn btn-danger btn-sm acao-apagarP">Apagar</button>',
         previsoes$id, previsoes$id
       )
       
@@ -61,12 +59,18 @@ mod_prediction_server <- function(id, estado_pagina, pool) {
     # Ver previsão
     observeEvent(input$ver_pred_id, {
       
-      # *função para mostrar os dados da provisão*
+      previsao <- previsoes_rv()[previsoes_rv()$id == input$ver_pred_id, ]
+      
+      dados <- getPredData(pool, previsao$caminho)
       
       showModal(modalDialog(
-        title = "Visualizar Previsão",
-        paste("Clicaste em ver a previsão com ID:", input$ver_pred_id)
-      ))
+                            renderDT({
+                              datatable(dados, escape = FALSE, options = list(scrollX = TRUE, pageLength = 10))  # Tabela interativa
+                            }),
+                            title = previsao$nome,
+                            size = "l",
+                            easyClose = TRUE
+                ))
     })
     
     

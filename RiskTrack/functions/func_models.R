@@ -1,12 +1,12 @@
-library(caret)
 library(rpart)
 library(tidymodels)
-
+library(caret)
 
 
 getModels <- function(pool, userId){
   
-  query <- paste0("SELECT * FROM modelo where utilizador_id =", userId)
+  
+  query <- paste0("SELECT * FROM modelo where utilizador_id =", userId())
                    
   resultado <- dbGetQuery(pool, query)
   
@@ -21,6 +21,16 @@ getmodel_path <- function(pool, id){
   resultado <- dbGetQuery(pool, query)
   
   return (as.character(resultado))
+}
+
+
+getAvData <- function(m_path){
+  
+  av_path <- gsub(".rds", "_av.rds", m_path)
+  
+  resultado <- readRDS(av_path)
+  return(resultado)
+  
 }
 
 
@@ -94,7 +104,7 @@ verificarMissingValues <- function(dataset) {
 
 
 # 
-criarModelo<- function(dataset, percentPara_treino, useCrossV){
+criarModelo<- function(dataset, percentPara_treino, useCrossV, cp, maxD,  progress = NULL, session = NULL){
   
   cat("Boraaa   ")
   
@@ -110,19 +120,19 @@ criarModelo<- function(dataset, percentPara_treino, useCrossV){
   
   treino <- datasetF[indices_treino, ]
   teste <- datasetF[-indices_treino, ]
- 
+  if (!is.null(progress)) progress(0.1, detail = "dados Preparados")
   
   #print(head(teste[[target]]))
   
   
-  #Usar Cross Validarion ou não? eis a questão
+  #Usar Cross Validarion ou não?
   if(useCrossV){
     
-    res <- treinarModeloCrossV(treino, target, features)
+    res <- treinarModeloCrossV(treino, target, features, progress)
     modelo <- res$modelo
     }
   
-  else{modelo = treinarModelo(treino, target, features)}
+  else{modelo = treinarModelo(treino, target, features, cp, maxD, progress)}
   
   
   avaliacao = avaliarModelo(modelo, target, teste)
@@ -138,6 +148,7 @@ tratardados <- function(dataset) {
   cat("Filtrando Dataset    ")
   
   # Converter todas as colunas para character (evita problemas com classes diferentes)
+  dataset[] <- lapply(dataset, function(x) if (is.factor(x)) as.character(x) else x)
   dataset[] <- lapply(dataset, function(x) if (is.character(x)) trimws(x) else x)
   
   #substituir os valores em falta pela média ou moda
@@ -175,7 +186,7 @@ dividirData <- function(dataset, para_treino, target){
   
   cat("dividindo Dataset     ")
   
-  #set.seed(123)  # permite reprodutibilidade
+  set.seed(123)  # permite reprodutibilidade
   
   # Fazer a divisão estratificada apenas se o target categórico
   if (is.factor(dataset[[target]]) || is.character(dataset[[target]])) {
@@ -193,14 +204,13 @@ dividirData <- function(dataset, para_treino, target){
 
 
 
-treinarModelo <- function(dados, target, features){
+treinarModelo <- function(dados, target, features, cp, maxdepth, progress){
   
   #str(dados)  # Mostra a estrutura do dataset
   
-  maxdepth = 15
-  cp = 0.001
   
   formula_modelo <- criarFormula(dados, target, features)
+  if (!is.null(progress)) progress(0.3, detail = "Treinando Modelo")
   
   cat("Treinando Modelo       ")
   
@@ -255,8 +265,8 @@ avaliarModelo <- function(modelo, target, dados){
 
 
 
-treinarModeloCrossV <- function(dados, target, features, 
-                                cp_values = c(0.001, 0.005, 0.01, 0.05), 
+treinarModeloCrossV <- function(dados, target, features, progress,
+                                cp_values = c(0.001, 0.005, 0.01, 0.03, 0.05), 
                                 maxdepth_values = c(5, 10, 15), 
                                 k = 5) {
   
@@ -271,17 +281,21 @@ treinarModeloCrossV <- function(dados, target, features,
   set.seed(123)
   folds <- createFolds(dados[[target]], k = k, list = TRUE)
   
-  resultados <- data.frame(cp = numeric(), maxdepth = numeric(), Accuracy = numeric())
+  resultados <- data.frame(cp = numeric(), maxdepth = numeric(), balanced_acc = numeric())
+  
+  total_iters <- nrow(grid)
   
   
-  
-  for (i in 1:nrow(grid)) {
+  for (i in 1:total_iters) {
     cp <- grid$cp[i]
     maxd <- grid$maxdepth[i]
     
     accs <- c()
     
     for (fold in folds) {
+      totNum <- 
+      
+      
       treino <- dados[-fold, ]
       teste <- dados[fold, ]
       
@@ -292,15 +306,32 @@ treinarModeloCrossV <- function(dados, target, features,
       
       pred <- predict(modelo, teste, type = "class")
       
-      f1 <- f1_score(teste[[target]], pred)
-      accs <- c(accs, f1)
+      cm <- confusionMatrix(pred, as.factor(teste[[target]]))
+      #f1 <- f1_score(teste[[target]], pred)
+      
+      b_acc <- cm$byClass
+      
+      if (is.matrix(b_acc)) { #checa se a existem mais de duas classes no target (se tiver mais de duas cria uma matrix, caso não, cria um vetor)
+        balanced_acc <- mean(b_acc[, "Balanced Accuracy"])
+      } else {
+        balanced_acc <- b_acc["Balanced Accuracy"]
+      }
+      accs <- c(accs, balanced_acc)
       
     }
+    
+    
+    # atualizar progresso após cada combinação
+    if (!is.null(incProgress)) {
+      incProgress(1 / total_iters, detail = paste0("Iteração ", i, " de ", total_iters))
+    }
 
-    resultados <- rbind(resultados, data.frame(cp = cp, maxdepth = maxd, f1_score  = mean(accs)))
+    resultados <- rbind(resultados, data.frame(cp = cp, maxdepth = maxd, balanced_acc  = mean(accs)))
   }
   
-  melhor_linha <- resultados[which.max(resultados$f1_score), ]
+
+  
+  melhor_linha <- resultados[which.max(resultados$balanced_acc), ]
   print(melhor_linha)
   
   # Treinar modelo final com os melhores parâmetros
@@ -329,18 +360,28 @@ f1_score <- function(y_true, y_pred, average = "macro") {
   
   if (average == "macro") {
     return(mean(f1, na.rm = TRUE))
+    
   } else if (average == "weighted") {
     return(sum(f1 * support, na.rm = TRUE) / sum(support))
+    
   } else if (average == "micro") {
-    # TP e FN totais
-    total_tp <- sum(diag(cm$table))
-    total_fn <- sum(cm$table) - total_tp
-    precision_micro <- total_tp / sum(cm$table)
-    recall_micro <- total_tp / (total_tp + total_fn)
+    # TP = soma da diagonal
+    TP <- sum(diag(cm$table))
+    # FP = soma por coluna - TP
+    FP <- sum(colSums(cm$table)) - TP
+    # FN = soma por linha - TP
+    FN <- sum(rowSums(cm$table)) - TP
+    
+    precision_micro <- TP / (TP + FP)
+    recall_micro <- TP / (TP + FN)
+    
+    if ((precision_micro + recall_micro) == 0) return(0)
     return(2 * precision_micro * recall_micro / (precision_micro + recall_micro))
+    
   } else {
     stop("Average inválido. Usa: 'macro', 'weighted' ou 'micro'.")
   }
 }
+
 
 

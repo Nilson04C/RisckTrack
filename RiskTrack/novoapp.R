@@ -20,6 +20,10 @@ pool <- dbPool(
   password = "123456"
 )
 
+onStop(function() {
+  poolClose(pool)
+})
+
 
 # Carregar os módulos
 source("modules/mod_login.R")
@@ -98,7 +102,9 @@ ui <- fluidPage(
                textInput("file_name", "Nome do arquivo:"),
                fileInput("file_upload", "Escolha o arquivo", accept = ".csv"),
                sliderInput("sliderTrainPr", "Percentagem de Treino", min = 50, max = 80, value = 60),
-               checkboxInput("crossV_box","usar Cross Validation"),
+               numericInput("cpInput","(parâmetro de complexidade (CP)", value = 0.001, step = 0.001),
+               numericInput("maxDInput", "profundidade máxima (Max Depth)", value = 5, max = 30),
+               checkboxInput("crossV_box","Tuning"),
                actionButton("submit_dataset", "Enviar"),
                actionButton("save_model","salvar Modelo",disabled = TRUE),
         ),
@@ -156,7 +162,9 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  valores <- reactiveValues(modelo = NULL, avaliacao = NULL, valor_slider = NULL, crossV = NULL  ) #valores globais
+  valores <- reactiveValues(modelo = NULL, avaliacao = NULL, valor_slider = NULL, crossV = NULL, cp = NULL, maxDepth = NULL) #valores globais
+  
+  user_id <- reactiveVal(NULL)
   
   MdlReadyToCreate <- reactiveVal(FALSE)
   
@@ -214,7 +222,13 @@ server <- function(input, output, session) {
     })
   })
   
+  #botão de criar modelo é criado
   observeEvent(input$submit_dataset,{
+    
+    
+    #obter valor de cp e maxdepth
+    valores$cp <- input$cpInput
+    valores$maxDepth <- input$maxDInput
     
     # Obter o valor do slider
     valores$valor_slider <- input$sliderTrainPr
@@ -224,6 +238,9 @@ server <- function(input, output, session) {
     #print(crossV)
     
     
+    
+    
+    
     # Verificar se o dataset foi carregado
     if (!is.null(input$file_upload)) {
       
@@ -231,13 +248,13 @@ server <- function(input, output, session) {
       dataset <- read.csv(input$file_upload$datapath, sep = ";")
       print("Dataset carregado:")
       
-      dataset <<- subsPorNA(dataset)
+      dataset <<- subsPorNA(dataset)   #passar todos os dados que Null, " ", entre outros em NA
       
       
-      # Mostra o primeiro modal se houver NAs
+      # Alerta sobre os missing Values se houver NAs
       if (any(is.na(dataset))) {
       
-        # Modal principal com conteúdo condicional
+        # Modal com conteúdo condicional
         showModal(modalDialog(
           title = "Dados Incompletos Detectados",
           uiOutput("modal_conteudo_dinamico"),
@@ -245,7 +262,7 @@ server <- function(input, output, session) {
           footer = NULL
         ))
         
-      } else{MdlReadyToCreate(TRUE)}
+      } else{MdlReadyToCreate(TRUE)}   #se não houver dados em falta, o modelo pode ser treinado
       
     } else {
       print("Nenhum dataset foi carregado.")
@@ -255,15 +272,22 @@ server <- function(input, output, session) {
   
   
   
-  
+  # criar Modelo
   observeEvent(MdlReadyToCreate(),{
-    print(paste("MdlReadyToCreate:", MdlReadyToCreate()))
+    #print(paste("MdlReadyToCreate:", MdlReadyToCreate()))
     
+    # se as as condições para criar o modelo foram cumpridas (caso seja encontrado dados vazios do dataset, o dataset deve ser tratado)
     if(MdlReadyToCreate())
     {
+      
+    toggle("plot_confusao")
+    toggle("table_avaliacao")
+      
     
     #criar o modelo e avaliar
-    resultado <- criarModelo(dataset, valores$valor_slider/100, valores$crossV)
+    withProgress(message = "A gerar modelo...", value = 0, { #barra de progresso
+    resultado <- criarModelo(dataset, valores$valor_slider/100, valores$crossV, valores$cp, valores$maxDepth, progress = incProgress, session = session)
+    })
     avaliacao_modelo = resultado$avaliacao
     modelo_treinado = resultado$modelo
     
@@ -291,6 +315,9 @@ server <- function(input, output, session) {
       rownames(metrics) <- NULL
       metrics
     })
+    
+    toggle("plot_confusao")
+    toggle("table_avaliacao")
     
     shinyjs::enable("save_model")
     MdlReadyToCreate(FALSE)  # Volta a ser FALSE
@@ -361,14 +388,13 @@ server <- function(input, output, session) {
       saveRDS(valores$avaliacao, paste0(name, "_av.rds"))
       print("Modelo Salvo")
       
-      utilizador_id <- 2 #a ser substituido por valor verdadeiro
       
       num_variaveis <- length(attr(valores$modelo$terms, "term.labels"))
       caminho <- paste0(getwd(),"/",name)
       avaliacao_caminho <- paste0(getwd(),"/",name,"_av")
       
       query = paste0("INSERT INTO modelo (nome, algoritmo, data_criacao, utilizador_id, caminho, avaliacao_caminho, n_variaveis) 
-                      VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", utilizador_id, ", '",caminho,".rds','",avaliacao_caminho,".rds', ",num_variaveis,");")
+                      VALUES ('",name,"', 'Árvore de Decisao', NOW(), ", user_id(), ", '",caminho,".rds','",avaliacao_caminho,".rds', ",num_variaveis,");")
       
       dbExecute(pool, query)
 
@@ -423,9 +449,19 @@ server <- function(input, output, session) {
   
   
   # Observa cliques nos botões do menu superior
-  observeEvent(input$btn_models, { pagina_atual("models") })
-  observeEvent(input$btn_dashboard, { pagina_atual("dashboard") })
-  observeEvent(input$btn_prediction, { pagina_atual("prediction") })
+  observeEvent(input$btn_models, { 
+    pagina_atual("models")  
+    mod_models_server("models", pool, user_id) 
+    })
+  
+  observeEvent(input$btn_dashboard, { 
+    pagina_atual("dashboard") 
+    mod_dashboard_server("dashboard", pagina_atual, pool, user_id)
+    })
+  observeEvent(input$btn_prediction, { 
+    pagina_atual("prediction")
+    mod_prediction_server("prediction", pagina_atual, pool, user_id)
+    })
   
   
   # Mostrar/esconder o dropdown ao clicar no botão "New"
@@ -478,10 +514,10 @@ server <- function(input, output, session) {
 
   
   
-  mod_login_server("login", logado)
-   mod_models_server("models", pool)
-  mod_dashboard_server("dashboard", pagina_atual, pool)
-  mod_prediction_server("prediction", pagina_atual, pool)
+  mod_login_server("login", logado, pool, user_id)
+ 
+  mod_dashboard_server("dashboard", pagina_atual, pool, user_id)
+  
 }
 
 shinyApp(ui, server)

@@ -1,7 +1,7 @@
 library(rpart)
 
 
-getPredFromModels <- function(pool, utilizador_id){
+getPreds <- function(pool, utilizador_id){
   
   query <- paste0("
   SELECT 
@@ -18,7 +18,7 @@ getPredFromModels <- function(pool, utilizador_id){
     modelo ON modelo.id = previsao.modelo_id
     
   WHERE
-    modelo.utilizador_id =",utilizador_id,"
+    modelo.utilizador_id =",utilizador_id(),"
     
   ORDER BY 
     modelo.nome, previsao.data_criacao DESC;
@@ -31,7 +31,11 @@ getPredFromModels <- function(pool, utilizador_id){
 }
 
 
-
+getPredData <- function(pool, path)
+{
+  resultado <- readRDS(path)
+  return(resultado)
+}
 
 
 
