@@ -38,7 +38,7 @@ ui <- fluidPage(
   
   
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=2")
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=1")
   ),
   
   useShinyjs(),  # Ativar shinyjs para manipular visibilidade
@@ -54,14 +54,15 @@ ui <- fluidPage(
       #Conteiner para o botão NEW
       div(style = "position: relative; masgin-left: 100px",
           
-          # Botão "new"
-          actionLink("add_btn", "New", 
-                       style = "color: white; display: none;"),
+          # Botão "new" com ícone
+          actionLink("add_btn", 
+                     label = span(style = "display: inline-flex; align-items: center;", 
+                                  icon("plus"), " New")),
           
-          #DropDown List
+          #DropDown List com ícones
           div(id = "dropdown_new", class ="dropdown-list",
-              actionLink("new_modelo", "Modelo", class = "dropdown-option"),
-              actionLink("new_previsao", "Previsão", class = "dropdown-option")
+              actionLink("new_modelo", label = span(icon("chart-line"), "Modelo"), class = "dropdown-option"),
+              actionLink("new_previsao", label = span(icon("chart-bar"), "Previsão"), class = "dropdown-option")
           )
       ),
       

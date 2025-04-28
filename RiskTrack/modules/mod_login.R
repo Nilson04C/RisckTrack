@@ -9,13 +9,29 @@ mod_login_ui <- function(id) {
   
   tagList(
     div(
-      style = "width: 300px; margin: auto; text-align: center;",
-      h2("RiskTrack - Login"),
-      textInput(ns("email"), "Email:"),
-      passwordInput(ns("senha"), "Senha:"),
-      actionButton(ns("entrar"), "Entrar", class = "btn-primary"),
-      actionButton(ns("criar_conta"), "Criar Conta", class = "btn-secondary"),
-      verbatimTextOutput(ns("mensagem"))
+      style = "display: flex; justify-content: center; margin-top: 2rem;",
+      card(
+        max_width = 400,
+        card_header(
+          h3("RiskTrack", class = "text-center"),
+          p("Sign in to your account", class = "text-muted text-center")
+        ),
+        card_body(
+          textInput(ns("email"), "Email:", placeholder = "Enter your email"),
+          passwordInput(ns("senha"), "Password:", placeholder = "Enter your password"),
+          div(
+            style = "margin-top: 20px;",
+            actionButton(ns("entrar"), "Sign In", 
+                         class = "btn-primary w-100 mb-2"),
+            actionButton(ns("criar_conta"), "Create Account", 
+                         class = "btn-outline-secondary w-100")
+          ),
+          uiOutput(ns("mensagem"))
+        ),
+        card_footer(
+          div(id = ns("mensagem"), class = "text-center")
+        )
+      )
     )
   )
 }
@@ -52,16 +68,32 @@ mod_login_server <- function(id, estado_login, pool, user_id) {
     
     observeEvent(input$criar_conta, {
       showModal(modalDialog(
-        title = "Criar Nova Conta",
-        div(
-          style = "width: 100%; text-align: center;",
-          textInput(ns("novo_nome"), "Nome:"),
-          textInput(ns("novo_email"), "Email Institucional:"),
-          passwordInput(ns("nova_senha"), "Senha:"),
-          passwordInput(ns("confirmar_senha"), "Confirmar Senha:"),
-          actionButton(ns("confirmar_criacao"), "Criar Conta", class = "btn-primary"),
-          verbatimTextOutput(ns("mensagem_criacao"))
-        )
+        title = NULL,
+        card(
+          card_header(
+            h3("Criar Nova Conta", class = "text-center"),
+            p("Preencha os dados para criar sua conta", class = "text-muted text-center")
+          ),
+          card_body(
+            textInput(ns("novo_nome"), "Nome:", placeholder = "Digite seu nome completo"),
+            textInput(ns("novo_email"), "Email Institucional:", placeholder = "nome@instituicao.com"),
+            passwordInput(ns("nova_senha"), "Senha:", placeholder = "Crie uma senha forte"),
+            passwordInput(ns("confirmar_senha"), "Confirmar Senha:", placeholder = "Digite a senha novamente"),
+            
+            # Adding UI element to display messages
+            uiOutput(ns("mensagem_criacao"))
+          ),
+          card_footer(
+            div(
+              class = "d-flex justify-content-between",
+              actionButton(ns("cancelar_criacao"), "Cancelar", class = "btn-outline-secondary"),
+              actionButton(ns("confirmar_criacao"), "Criar Conta", class = "btn-primary")
+            )
+          )
+        ),
+        size = "m",
+        easyClose = TRUE,
+        footer = NULL
       ))
     })
     

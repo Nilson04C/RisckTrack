@@ -1,37 +1,391 @@
-.sidebar-custom {
-    background-color: #f8f9fa; /* Cor de fundo */
-    height: 100vh; /* Ocupa toda a altura da tela */
 
+    .dropdown-list {
+      display: none;
+      position: absolute;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      min-width: 120px;
+      top: 100%;
+      left: 0;
+      margin-top: 5px;
+    }
+    
+    .dropdown-option {
+      display: block;
+      padding: 8px 12px;
+      color: #333;
+      text-decoration: none;
+    }
+    
+    .dropdown-option:hover {
+      background-color: #f5f5f5;
+    }
+
+/* RiskTrack - Estilo moderno para Shiny */
+
+/* Tipografia e Estilos Globais */
+body {
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  color: #2c3e50;
+  background-color: #f7f9fc;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
 }
-.menu-item {
-    margin: 10px; /* Espaçamento externo */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: #2c3e50;
 }
 
-
+/* Menu Superior */
 .menu {
-  background-color: black; 
-  top: 0; 
-  width: 100%; 
-  height: Auto; 
-  display: flex; 
+  background-color: #346cba;
+  color: white;
+  padding: 15px 20px;
+  display: flex;
   align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 100;
 }
 
+.navbar-brand {
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  margin-right: 30px;
+}
 
+/* Botão New */
+#add_btn {
+  color: white;
+  display: none;
+  border: none;
+  font-weight: 500;
+  transition: background-color 0.2s, transform 0.1s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#add_btn:hover {
+  background-color: #3a7bc8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Dropdown List para o botão New */
 .dropdown-list {
-  display: none; 
-  position: absolute; 
-  background-color: #f9f9f9;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border-radius: 6px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  min-width: 150px;
   z-index: 1000;
+  margin-top: 10px;
+  overflow: hidden;
 }
+
 .dropdown-option {
-  color: black; 
-  padding: 12px 16px; 
-  text-decoration: none; 
   display: block;
+  padding: 12px 16px;
+  color: #2c3e50;
+  text-decoration: none;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.dropdown-option:hover {
+  background-color: #f7f9fc;
+  color: #3a7bc8;
+}
+
+/* Menu Lateral */
+.sidebar-custom {
+  background-color: #ffffff;
+  border-right: 1px solid #e0e6ed;
+  padding: 20px 15px;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+
+.menu-item {
+  margin-bottom: 10px;
+}
+
+.menu-item .btn {
+  background: none;
+  border: none;
+  color: #546e7a;
+  text-align: left;
+  padding: 10px 15px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.menu-item .btn:hover {
+  background-color: #f0f5fa;
+  color: #3a7bc8;
+}
+
+.menu-item .btn.active {
+  background-color: #e0e9f5;
+  color: #3a7bc8;
+}
+
+/* Conteúdo Principal */
+.container-fluid {
+  padding: 20px;
+}
+
+/* Estilização para Cards */
+.shiny-output-container, .well, .panel {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+  border: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.shiny-output-container:hover, .well:hover, .panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+}
+
+/* Botões */
+.btn {
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #3a7bc8;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #2c66b0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+.btn-warning {
+  background-color: #f39c12;
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #d35400;
+}
+
+.btn[disabled] {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+/* Formulários e Inputs */
+.form-control, .selectize-input {
+  border-radius: 6px;
+  border: 1px solid #dce4ec;
+  padding: 10px 15px;
+  transition: all 0.2s;
+  box-shadow: none;
+  height: auto;
+}
+
+.form-control:focus, .selectize-input.focus {
+  border-color: #3a7bc8;
+  box-shadow: 0 0 0 3px rgba(58, 123, 200, 0.15);
+}
+
+/* Sliders */
+.irs--shiny .irs-bar {
+  background-color: #3a7bc8;
+}
+
+.irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single {
+  background-color: #3a7bc8;
+}
+
+.irs--shiny .irs-handle {
+  border-color: #3a7bc8;
+  box-shadow: 0 0 3px rgba(0,0,0,0.3);
+}
+
+.irs--shiny .irs-handle:hover {
+  background-color: #f0f0f0;
+}
+
+/* Modais */
+.modal-content {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.modal-header {
+  background-color: #346cba;
+  color: white;
+  border-bottom: none;
+  padding: 15px 20px;
+}
+
+.modal-title {
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  border-top: 1px solid #ecf0f1;
+  padding: 15px 20px;
+}
+
+.close {
+  color: white;
+  opacity: 0.8;
+}
+
+.close:hover {
+  color: white;
+  opacity: 1;
+}
+
+/* Tabelas */
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table th {
+  font-weight: 600;
+  background-color: #f5f7fa;
+  border-top: none;
+  padding: 12px 15px;
+}
+
+.table td {
+  padding: 12px 15px;
+  vertical-align: middle;
+  border-top: 1px solid #ecf0f1;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* DataTables específicos */
+.dataTables_wrapper {
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.dataTables_info, .dataTables_length, .dataTables_filter {
+  padding: 10px 0;
+  color: #7f8c8d;
+}
+
+.dataTables_paginate {
+  padding: 10px 0;
+}
+
+.dataTables_paginate .paginate_button {
+  padding: 6px 12px;
+  margin-left: 2px;
+  border-radius: 4px;
+}
+
+.dataTables_paginate .paginate_button.current {
+  background: #3a7bc8 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.dataTables_paginate .paginate_button:hover {
+  background: #ecf0f1 !important;
+  color: #2c3e50 !important;
+  border: 1px solid transparent !important;
+}
+
+.dataTables_wrapper .btn-group .btn {
+  margin-right: 4px;
+}
+
+/* Gráficos e Plots */
+.shiny-plot-output {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  background-color: white;
+}
+
+/* Checkbox e Radio */
+.checkbox label, .radio label {
+  display: inline-block;
+  padding-left: 25px;
+  position: relative;
+  cursor: pointer;
+}
+
+.checkbox input[type="checkbox"], .radio input[type="radio"] {
+  position: absolute;
+  opacity: 1;
 }
 
 
+
+.radio label::before {
+  border-radius: 50%;
+}
+
+.checkbox input[type="checkbox"]:checked + label::before, 
+.radio input[type="radio"]:checked + label::before {
+  background-color: #3a7bc8;
+  border-color: #3a7bc8;
+}
+
+.checkbox input[type="checkbox"]:checked + label::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width
+}
 .grid {
     display: flex; /* Ativa o Flexbox */
     flex-direction: column; /* Organiza em coluna */
