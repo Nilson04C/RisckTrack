@@ -20,6 +20,13 @@ mod_dashboard_server <- function(id, estado_pagina, pool, user_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
+    
+    atualizar_dados <- function() {
+      # This function intentionally does nothing
+      NULL  # Implicit return of NULL without using return()
+    }
+    
+    
     # Buscar a quantidade total de modelos
     models_count <- reactive({
       dbGetQuery(pool, "SELECT COUNT(*) as total FROM modelo;")$total[1]
@@ -82,5 +89,8 @@ mod_dashboard_server <- function(id, estado_pagina, pool, user_id) {
         pagina_atual(1)
       }
     })
+    
+    return(list(atualizar_dados = atualizar_dados))
+    
   })
 }

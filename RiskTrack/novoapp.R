@@ -52,12 +52,13 @@ ui <- fluidPage(
       tags$a(href = "#", style = "color: white;", class ="navbar-brand", "RiskTrack"),  # Título do app
       
       #Conteiner para o botão NEW
-      div(style = "position: relative; masgin-left: 100px",
+      div(style = "position: relative",
           
           # Botão "new" com ícone
           actionLink("add_btn", 
                      label = span(style = "display: inline-flex; align-items: center;", 
-                                  icon("plus"), " New")),
+                                  "New ", 
+                                  icon("plus", style = "margin-left: 4px;"))),
           
           #DropDown List com ícones
           div(id = "dropdown_new", class ="dropdown-list",
@@ -76,9 +77,18 @@ ui <- fluidPage(
       class = "sidebar-custom",
       
       style = "display: none;",  # Esconde o menu lateral inicialmente
-      fluidRow( class= "menu-item", actionButton("btn_models", "Modelos")),
-      fluidRow( class= "menu-item", actionButton("btn_dashboard", "Dashboard")),
-      fluidRow( class= "menu-item", actionButton("btn_prediction", "Previsões"))
+      fluidRow(class = "menu-item", 
+               actionButton("btn_dashboard", 
+                            label = span(style = "display: flex; align-items: center;", 
+                                         icon("list-alt", style = "margin-right: 8px;"), "Dashboard"))),
+      fluidRow(class = "menu-item", 
+               actionButton("btn_models", 
+                            label = span(style = "display: flex; align-items: center;", 
+                                         icon("chart-line", style = "margin-right: 8px;"), "Modelos"))),
+      fluidRow(class = "menu-item", 
+               actionButton("btn_prediction", 
+                            label = span(style = "display: flex; align-items: center;", 
+                                         icon("chart-bar", style = "margin-right: 8px;"), "Previsões")))
       
     ),
     
@@ -171,6 +181,9 @@ server <- function(input, output, session) {
   
   modal_page <- reactiveVal("menu")  # Começa no menu principal
   
+  models_module <- NULL
+  dashboard_module <- NULL
+  prediction_module <- NULL
   
   
   # se o botao para ver o modal de previsão for clicado
@@ -450,18 +463,38 @@ server <- function(input, output, session) {
   
   
   # Observa cliques nos botões do menu superior
-  observeEvent(input$btn_models, { 
-    pagina_atual("models")  
-    mod_models_server("models", pool, user_id) 
-    })
+  observeEvent(input$btn_models, {
+    # Verifica se o user_id existe
+    req(user_id())
+    pagina_atual("models")
+    
+    # Inicializa o módulo apenas uma vez
+    if (is.null(models_module)) {
+      models_module <<- mod_models_server("models", pool, user_id)
+    } else {
+      # Se já existe, apenas atualiza os dados
+      models_module$atualizar_tabela()
+    }
+  })
+  
   
   observeEvent(input$btn_dashboard, { 
     pagina_atual("dashboard") 
-    mod_dashboard_server("dashboard", pagina_atual, pool, user_id)
+    
+      #dashboard_module$atualizar_dados()
     })
+  
+  
   observeEvent(input$btn_prediction, { 
     pagina_atual("prediction")
-    mod_prediction_server("prediction", pagina_atual, pool, user_id)
+    
+    # Inicializa o módulo apenas uma vez
+    if (is.null(prediction_module)) {
+      prediction_module <<- mod_prediction_server("prediction", estado_pagina, pool, user_id)
+    } else {
+      # Se já existe, apenas atualiza os dados
+      prediction_module$atualizar_tabela()
+    }
     })
   
   

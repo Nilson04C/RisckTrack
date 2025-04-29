@@ -2,7 +2,6 @@
 source("./functions/func_models.R")
 
 
-utilizador_id <- 2
 
 # Módulo UI
 # UI
@@ -63,6 +62,22 @@ mod_models_server <- function(id, pool, user_id) {
     
     
     
+    
+    
+    # Reage ao clique no botão "apagar"
+    observeEvent(input$apagar_modelo_id, {
+      
+      showModal(modalDialog(
+        title = "Confirmar Apagamento",
+        paste("Tens a certeza que queres apagar o modelo com ID:", input$apagar_modelo_id, "?"),
+        footer = tagList(
+          modalButton("Cancelar"),
+          actionButton(ns("confirmar_apagar_modelo"), "Apagar", class = "btn btn-danger")
+        ),
+        easyClose = TRUE
+      ))
+  }, ignoreInit = TRUE)
+    
     # Reage ao clique no botão "ver"
     observeEvent(input$ver_modelo_id, {
       
@@ -99,23 +114,7 @@ mod_models_server <- function(id, pool, user_id) {
                             size = "m",
                             easyClose = TRUE
                           ))
-    })
-    
-    
-    
-    # Reage ao clique no botão "apagar"
-    observeEvent(input$apagar_modelo_id, {
-      
-      showModal(modalDialog(
-        title = "Confirmar Apagamento",
-        paste("Tens a certeza que queres apagar o modelo com ID:", input$apagar_modelo_id, "?"),
-        footer = tagList(
-          modalButton("Cancelar"),
-          actionButton(ns("confirmar_apagar_modelo"), "Apagar", class = "btn btn-danger")
-        ),
-        easyClose = TRUE
-      ))
-  })
+    }, ignoreInit = TRUE)
     
     
     observeEvent(input$confirmar_apagar_modelo, {

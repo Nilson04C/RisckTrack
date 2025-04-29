@@ -71,7 +71,7 @@ mod_prediction_server <- function(id, estado_pagina, pool, user_id) {
                             size = "l",
                             easyClose = TRUE
                 ))
-    })
+    }, ignoreInit = TRUE)
     
     
     # Apagar previsão
@@ -86,7 +86,7 @@ mod_prediction_server <- function(id, estado_pagina, pool, user_id) {
         ),
         easyClose = TRUE
       ))
-    })
+    }, ignoreInit = TRUE)
     
     observeEvent(input$confirmar_apagar_prev, {
       removeModal()
@@ -112,6 +112,8 @@ mod_prediction_server <- function(id, estado_pagina, pool, user_id) {
     })
     
     atualizar_tabela_previsoes()
+      
+    return(list(atualizar_tabela = atualizar_tabela_previsoes))
     
   })
 }
