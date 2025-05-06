@@ -1,4 +1,10 @@
 
+    
+    .dropdown-container {
+    position: relative;
+    display: inline-block;
+    }
+    
     .dropdown-list {
       display: none;
       position: absolute;

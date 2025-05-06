@@ -1,96 +1,103 @@
+library(shiny)
+library(bslib)
+library(DBI)
+library(RPostgres)
+
 # Módulo UI
-mod_dashboard_ui<- function(id) {
+mod_dashboard_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    div(
-      class = "grid",
+    layout_columns(
+      card(
+        card_header(
+          div(style = "text-align: center; font-weight: 600;", "Modelos")
+        ),
+        card_body(
+          div(style = "text-align: center;",
+              div(style = "font-size: 36px; font-weight: bold; color: #346cba; margin-bottom: 10px;",
+                  textOutput(ns("model_count"))
+              ),
+              div(style = "font-size: 16px; color: #7f8c8d;",
+                  "Total de Modelos"
+              )
+          )
+        ),
+        height = 160,
+        style = "border: 1px solid #e0e6ed; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); background-color: white; margin: 0 10px;"
+      ),
       
-      # Grid de modelos renderizado dinamicamente
-      uiOutput(ns("grid_modelos")),
-      
-      # Botão para trocar os modelos exibidos (inicialmente invisível)
-      uiOutput(ns("btn_pagina"))
+      card(
+        card_header(
+          div(style = "text-align: center; font-weight: 600;", "Predições")
+        ),
+        card_body(
+          div(style = "text-align: center;",
+              div(style = "font-size: 36px; font-weight: bold; color: #346cba; margin-bottom: 10px;",
+                  textOutput(ns("prediction_count"))
+              ),
+              div(style = "font-size: 16px; color: #7f8c8d;",
+                  "Total de Predições"
+              )
+          )
+        ),
+        height = 160,
+        style = "border: 1px solid #e0e6ed; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); background-color: white; margin: 0 10px;"
+      ),
+      col_widths = c(6, 6),
+      gap = "10px"  # Reduce the gap between columns
     )
   )
 }
 
+
+
+
 # Módulo Server
-mod_dashboard_server <- function(id, estado_pagina, pool, user_id) {
+mod_dashboard_server <- function(id, pool, user) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
     
-    atualizar_dados <- function() {
-      # This function intentionally does nothing
-      NULL  # Implicit return of NULL without using return()
-    }
-    
-    
-    # Buscar a quantidade total de modelos
-    models_count <- reactive({
-      dbGetQuery(pool, "SELECT COUNT(*) as total FROM modelo;")$total[1]
+    user_id <- reactive({
+      # Access the user_id reactive value
+      req(user())
+      return(user())
     })
     
-    # Buscar todos os modelos da base de dados
-    modelos_df <- reactive({
-      dbGetQuery(pool, "SELECT id, nome FROM modelo ORDER BY id;")
+    
+    # Buscar a quantidade total de modelos e predições em uma única query eficiente
+    counts_data <- reactive({
+      req(user_id())
+      tryCatch({
+        query <- "
+      SELECT 
+        COUNT(DISTINCT m.id) AS model_count,
+        COUNT(DISTINCT p.id) AS prediction_count
+      FROM modelo m
+      LEFT JOIN previsao p ON p.modelo_id = m.id
+      WHERE m.utilizador_id = $1
+    "
+        result <- dbGetQuery(pool, query, params = list(user_id()))
+        
+        return(list(
+          models = result$model_count[1],
+          predictions = result$prediction_count[1]
+        ))
+      }, error = function(e) {
+        message("Erro ao buscar quantidade de modelos e predições: ", e$message)
+        return(list(models = "Erro", predictions = "Erro"))
+      })
     })
     
-    pagina_atual <- reactiveVal(1)
-    elementos_por_pagina <- 6
-    
-    # Modelos atualmente visíveis
-    modelos_atualizados <- reactive({
-      if (nrow(modelos_df()) == 0) return(NULL)  # Se não houver modelos, retorna NULL
-      inicio <- (pagina_atual() - 1) * elementos_por_pagina + 1
-      fim <- min(inicio + elementos_por_pagina - 1, nrow(modelos_df()))
-      modelos_df()[inicio:fim, ]  # Retorna os modelos da página atual
+    # Render outputs para os cards de contagem
+    output$model_count <- renderText({
+      as.integer(counts_data()$models)
     })
     
-    # Renderiza a grid de modelos dinamicamente
-    output$grid_modelos <- renderUI({
-      if (is.null(modelos_atualizados())) {
-        return(h4("Sem Modelos", style = "text-align: center; margin-top: 20px;"))
-      }
-      
-      div(
-        lapply(seq(1, nrow(modelos_atualizados()), by = 3), function(i) {
-          fluidRow(
-            lapply(0:2, function(j) {
-              index <- i + j
-              if (index <= nrow(modelos_atualizados())) {
-                modelo <- modelos_atualizados()[index, ]
-                column(4, div(class = "grid-item",
-                              h4(modelo$nome),
-                              actionButton(ns(paste0("opcoes_", modelo$id)), "Opções", class = "btn-options"))
-                )
-              }
-            })
-          )
-        })
-      )
+    output$prediction_count <- renderText({
+      as.integer(counts_data()$predictions)
     })
-    
-    # Renderiza o botão "Próxima Página" apenas se houver modelos
-    output$btn_pagina <- renderUI({
-      if (models_count() > elementos_por_pagina) {
-        actionButton(ns("proxima_pagina"), "Próxima Página", style = "margin-top: 20px;")
-      } else {
-        NULL  # Esconde o botão se não for necessário
-      }
-    })
-    
-    # Atualiza a página ao clicar no botão
-    observeEvent(input$proxima_pagina, {
-      if (pagina_atual() * elementos_por_pagina < models_count()) {
-        pagina_atual(pagina_atual() + 1)
-      } else {
-        pagina_atual(1)
-      }
-    })
-    
-    return(list(atualizar_dados = atualizar_dados))
     
   })
 }

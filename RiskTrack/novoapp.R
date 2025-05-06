@@ -38,7 +38,7 @@ ui <- fluidPage(
   
   
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=1")
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=2")
   ),
   
   useShinyjs(),  # Ativar shinyjs para manipular visibilidade
@@ -51,21 +51,29 @@ ui <- fluidPage(
       #Titulo do APP
       tags$a(href = "#", style = "color: white;", class ="navbar-brand", "RiskTrack"),  # Título do app
       
-      #Conteiner para o botão NEW
-      div(style = "position: relative",
-          
+      
+      #Conteiner para o botão NEW e o dropdown list
+      div(class = "dropdown-container",
           # Botão "new" com ícone
           actionLink("add_btn", 
                      label = span(style = "display: inline-flex; align-items: center;", 
                                   "New ", 
                                   icon("plus", style = "margin-left: 4px;"))),
           
-          #DropDown List com ícones
-          div(id = "dropdown_new", class ="dropdown-list",
+          # DropDown List com ícones
+          div(id = "dropdown_new", class = "dropdown-list",
               actionLink("new_modelo", label = span(icon("chart-line"), "Modelo"), class = "dropdown-option"),
               actionLink("new_previsao", label = span(icon("chart-bar"), "Previsão"), class = "dropdown-option")
           )
       ),
+      
+      # Botão de logout (alinhado à direita)
+      div(id = "div_logout",style = "margin-left: auto; display: none",
+          actionLink("btn_logout", 
+                     label = span(style = "display: none; display: inline-flex; align-items: center; color: white;", 
+                                  "Logout ", 
+                                  icon("sign-out-alt", style = "margin-left: 4px;")))
+      )
       
   ),
   
@@ -426,6 +434,7 @@ server <- function(input, output, session) {
       shinyjs::show("menu_lateral")
       shinyjs::show("add_btn")
       shinyjs::show("btn_logout")
+      shinyjs::show("div_logout")
       runjs("
         setTimeout(function() {
           var sidebarWidth = document.getElementById('menu_lateral').offsetWidth;
@@ -501,20 +510,28 @@ server <- function(input, output, session) {
   # Mostrar/esconder o dropdown ao clicar no botão "New"
   observeEvent(input$add_btn, {
     shinyjs::toggle("dropdown_new")
+    
+    # Make sure dropdown appears below the button
+    runjs("
+    var newButtonRect = document.getElementById('add_btn').getBoundingClientRect();
+    var dropdown = document.getElementById('dropdown_new');
+    dropdown.style.top = newButtonRect.height + 'px';
+    dropdown.style.left = '125px';
+  ")
   })
   
   observeEvent(input$new_modelo, {
     shinyjs::hide("dropdown_new")
   })
-  observeEvent(input$new_previsoes, {
+  observeEvent(input$new_previsao, {
     shinyjs::hide("dropdown_new")
   })
   
   
   observeEvent(input$btn_logout, {
-    poolClose(pool)  # Fecha a conexão com segurança
-    estado_login(FALSE)  # Faz logout
-    estado_pagina("login")  # Volta para a página de login
+    user_id(NULL)
+    logado(FALSE)  # Faz logout
+    pagina_atual("login")  # Volta para a página de login
   })
   
   
@@ -550,7 +567,7 @@ server <- function(input, output, session) {
   
   mod_login_server("login", logado, pool, user_id)
  
-  mod_dashboard_server("dashboard", pagina_atual, pool, user_id)
+  mod_dashboard_server("dashboard", pool, user_id)
   
 }
 
