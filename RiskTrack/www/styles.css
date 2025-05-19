@@ -51,7 +51,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Menu Superior */
 .menu {
-  background-color: #346cba;
+  background-color: #1E3A8A;
   color: white;
   padding: 15px 20px;
   display: flex;
@@ -187,7 +187,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-danger {
-  background-color: #e74c3c;
+  background-color: #EF4444;
 }
 
 .btn-danger:hover {
@@ -219,21 +219,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .form-control:focus, .selectize-input.focus {
-  border-color: #3a7bc8;
+  border-color: #3B82F6;
   box-shadow: 0 0 0 3px rgba(58, 123, 200, 0.15);
 }
 
 /* Sliders */
 .irs--shiny .irs-bar {
-  background-color: #3a7bc8;
+  background-color: #3B82F6;
 }
 
 .irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single {
-  background-color: #3a7bc8;
+  background-color: #3B82F6;
 }
 
 .irs--shiny .irs-handle {
-  border-color: #3a7bc8;
+  border-color: #3B82F6;
   box-shadow: 0 0 3px rgba(0,0,0,0.3);
 }
 
@@ -257,6 +257,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .modal-title {
+  color:white;
   font-weight: 600;
 }
 
@@ -402,4 +403,40 @@ h1, h2, h3, h4, h5, h6 {
     text-align: center; /* Centralizar conteúdo */
     margin: 10px; /* Espaçamento externo */
     white-space: nowrap; /* Impede a quebra de linha dentro do elemento */
+}
+
+
+
+
+/* Fix for modal padding and width issues */
+body {
+  padding-right: 0 !important;
+  overflow-y: auto !important;
+}
+
+.modal-open {
+  overflow-y: auto !important;
+  padding-right: 0 !important;
+}
+
+/* Ensure body keeps its width even after modal closes */
+html, body {
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Additional fix for modal backdrop */
+.modal-backdrop {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fix for modal scrolling issues */
+.modal {
+  padding-right: 0 !important;
+}
+
+/* Ensure proper cleanup after modal closes */
+.fade {
+  transition: opacity 0.15s linear !important;
 }

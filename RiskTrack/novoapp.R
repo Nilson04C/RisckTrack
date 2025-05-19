@@ -38,7 +38,7 @@ ui <- fluidPage(
   
   
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=2")
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=1")
   ),
   
   useShinyjs(),  # Ativar shinyjs para manipular visibilidade
@@ -197,51 +197,53 @@ server <- function(input, output, session) {
   # se o botao para ver o modal de previsão for clicado
   observeEvent(input$new_previsao, {
     
-    modelos <- getmodels_list(pool)
+    modelos <- getmodels_list(pool, user_id)
     
     # Atualizar a dropdownList das previsões com nome e o id dos modelos
     updateSelectInput(session, "select_model_pred", choices = modelos)
     
-    # se o botão de fazer uma previsão for clicado
-    observeEvent(input$submit_dataset_pred, {
+
+  })
+  
+  # se o botão de fazer uma previsão for clicado
+  observeEvent(input$submit_dataset_pred, {
+    
+    nome <- input$file_name_pred
+    
+    
+    if (!is.null(input$file_upload_pred) && !is.null(input$select_model_pred) && nzchar(nome)) {
       
-      nome <- input$file_name_pred
+      dataset <- read.csv(input$file_upload_pred$datapath, sep = ";")
+      print("Dataset carregado:")
+      
+      modelo_id <- input$select_model_pred
+      
+      caminho <- getmodel_path(pool, modelo_id)
+      
+      modelo <- readRDS(caminho)
+      
+      previsao <- fazer_previsao( modelo, dataset )
       
       
-      if (!is.null(input$file_upload_pred) && !is.null(input$select_model_pred) && nzchar(nome)) {
-        
-        dataset <- read.csv(input$file_upload_pred$datapath, sep = ";")
-        print("Dataset carregado:")
-        
-        modelo_id <- input$select_model_pred
-        
-        caminho <- getmodel_path(pool, modelo_id)
-        
-        modelo <- readRDS(caminho)
-        
-        previsao <- fazer_previsao( modelo, dataset )
-        
-        
-        #output$fail_rate <- renderPlot()
-        
-        # tabela que exibe os dados da previsão
-        output$pred_table <- renderDT({
-          datatable(previsao, 
-                    extensions = "Buttons", 
-                    options = list(
-                      scrollX = TRUE,
-                      pageLength = 10, # Número de linhas visíveis por página
-                      dom = 'Bfrtip', # Ativa botões
-                      buttons = c('csv', 'excel', 'pdf') # Exportação
-                    ))
-           })
-        
-        #SALVAR A PREVISÃO
-        savepred(nome, previsao, pool, modelo_id)
-        
-      }
+      #output$fail_rate <- renderPlot()
       
-    })
+      # tabela que exibe os dados da previsão
+      output$pred_table <- renderDT({
+        datatable(previsao, 
+                  extensions = "Buttons", 
+                  options = list(
+                    scrollX = TRUE,
+                    pageLength = 10, # Número de linhas visíveis por página
+                    dom = 'Bfrtip', # Ativa botões
+                    buttons = c('csv', 'excel', 'pdf') # Exportação
+                  ))
+      })
+      
+      #SALVAR A PREVISÃO
+      savepred(nome, previsao, pool, modelo_id)
+      
+    }
+    
   })
   
   #botão de criar modelo é criado
@@ -490,7 +492,7 @@ server <- function(input, output, session) {
   observeEvent(input$btn_dashboard, { 
     pagina_atual("dashboard") 
     
-      #dashboard_module$atualizar_dados()
+      dashboard_module$atualizar_dashboard()
     })
   
   
@@ -567,7 +569,7 @@ server <- function(input, output, session) {
   
   mod_login_server("login", logado, pool, user_id)
  
-  mod_dashboard_server("dashboard", pool, user_id)
+  dashboard_module <- mod_dashboard_server("dashboard", pool, user_id)
   
 }
 

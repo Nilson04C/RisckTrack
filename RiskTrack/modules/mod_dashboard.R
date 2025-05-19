@@ -58,6 +58,13 @@ mod_dashboard_server <- function(id, pool, user) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
+    # Create a reactive value to track when updates are needed
+    update_trigger <- reactiveVal(0)
+    
+    # Function to trigger dashboard update that can be called from outside
+    atualizar_dashboard <- function() {
+      update_trigger(update_trigger() + 1)
+    }
     
     user_id <- reactive({
       # Access the user_id reactive value
@@ -65,9 +72,11 @@ mod_dashboard_server <- function(id, pool, user) {
       return(user())
     })
     
-    
     # Buscar a quantidade total de modelos e predições em uma única query eficiente
     counts_data <- reactive({
+      # Also depend on the update trigger
+      update_trigger()
+      
       req(user_id())
       tryCatch({
         query <- "
@@ -99,5 +108,9 @@ mod_dashboard_server <- function(id, pool, user) {
       as.integer(counts_data()$predictions)
     })
     
+    # Return the update function so it can be called from the main app
+    return(list(
+      atualizar_dashboard = atualizar_dashboard
+    ))
   })
 }

@@ -35,9 +35,9 @@ getAvData <- function(m_path){
 
 
 
-getmodels_list <- function(pool){
+getmodels_list <- function(pool, user_id){
   
-  query <- "SELECT id, nome FROM modelo"
+  query <- paste0("SELECT id, nome FROM modelo where utilizador_id =",user_id())
   resultados <- dbGetQuery(pool, query)
   
   modelos <- setNames(resultados$id, resultados$nome)

@@ -65,7 +65,16 @@ mod_prediction_server <- function(id, estado_pagina, pool, user_id) {
       
       showModal(modalDialog(
                             renderDT({
-                              datatable(dados, escape = FALSE, options = list(scrollX = TRUE, pageLength = 10))  # Tabela interativa
+                              datatable(dados, 
+                                        escape = FALSE, 
+                                        extensions = 'Buttons',
+                                        options = list(
+                                          scrollX = TRUE, 
+                                          pageLength = 10,
+                                          dom = 'Bfrtip',  # This positions the Buttons at the top
+                                          buttons = c('copy', 'csv', 'excel', 'pdf')
+                                        )
+                              )  # Tabela interativa
                             }),
                             title = previsao$nome,
                             size = "l",

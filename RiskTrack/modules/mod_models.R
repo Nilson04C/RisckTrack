@@ -135,6 +135,28 @@ mod_models_server <- function(id, pool, user_id) {
         file.remove(caminho_avaliacao)
       }
       
+      
+      
+      # Get and remove associated predictions
+      # First, query to get all predictions associated with this model
+      query_predictions <- paste0("SELECT id, caminho FROM previsao WHERE modelo_id = ", id_modelo)
+      predictions <- dbGetQuery(pool, query_predictions)
+      
+      # Remove each prediction file
+      if (nrow(predictions) > 0) {
+        for (i in 1:nrow(predictions)) {
+          prediction_path <- predictions$caminho[i]
+          if (!is.na(prediction_path) && file.exists(prediction_path)) {
+            file.remove(prediction_path)
+          }
+        }
+        
+        # Delete all predictions for this model from the database
+        dbExecute(pool, paste0("DELETE FROM previsao WHERE modelo_id = ", id_modelo))
+      }
+      
+      
+      
       dbExecute(pool, paste0("DELETE FROM modelo WHERE id = ", id_modelo))
       
       # Atualiza a tabela depois de apagar
